@@ -1,4 +1,5 @@
 import { Post } from '../../models/Post';
+import { User } from '../../models/User';
 import { Comment } from '../../models/Comment';
 import { Notification } from '../../models/Notification';
 import { GraphQLContext, requireAuth, EVENTS } from '../context';
@@ -158,6 +159,44 @@ export const postResolvers = {
       const items = hasMore ? valid.slice(0, safeLimit) : valid;
       return { posts: items, hasMore, nextCursor: hasMore ? encodeCursor(items[items.length - 1].createdAt) : null, total: -1 };
     },
+
+    // Backs the Saved page. Unlike feed/userPosts/userPhotos, there's no
+    // per-item timestamp to cursor on (savedPosts is just an array of ids,
+    // not subdocuments — see the comment on the schema field for why),
+    // so this uses a simple offset encoded as the cursor instead of a
+    // date. $addToSet appends, so the array's natural order is
+    // oldest-saved-first; reversed here for most-recently-saved-first.
+    savedPosts: async (_: unknown, { cursor, limit = 15 }: any, { user }: GraphQLContext) => {
+      requireAuth(user);
+      const safeLimit = Math.min(Math.max(1, limit), 50);
+      const offset = cursor ? parseInt(Buffer.from(cursor, 'base64url').toString('utf8'), 10) || 0 : 0;
+
+      const fresh = await User.findById(user._id).select('savedPosts').lean();
+      const allIds = [...(fresh?.savedPosts ?? [])].reverse();
+      const pageIds = allIds.slice(offset, offset + safeLimit + 1);
+      const hasMore = pageIds.length > safeLimit;
+      const idsToFetch = hasMore ? pageIds.slice(0, safeLimit) : pageIds;
+
+      if (idsToFetch.length === 0) {
+        return { posts: [], hasMore: false, nextCursor: null, total: -1 };
+      }
+
+      const posts = await Post.find({ _id: { $in: idsToFetch } })
+        .populate({ path: 'author', select: '-password', match: { _id: { $exists: true } } })
+        .lean();
+
+      // $in doesn't preserve array order — re-sort to match savedPosts order,
+      // and drop any posts whose author no longer exists (deleted account).
+      const byId = new Map((posts as any[]).map((p: any) => [p._id.toString(), p]));
+      const ordered = idsToFetch
+        .map((id: any) => byId.get(id.toString()))
+        .filter((p: any) => p && p.author != null);
+
+      const nextCursor = hasMore
+        ? Buffer.from(String(offset + safeLimit), 'utf8').toString('base64url')
+        : null;
+      return { posts: ordered, hasMore, nextCursor, total: -1 };
+    },
   },
 
   Mutation: {
@@ -279,6 +318,20 @@ export const postResolvers = {
       await post.save();
       return post;
     },
+
+    savePost: async (_: unknown, { postId }: { postId: string }, { user }: GraphQLContext) => {
+      requireAuth(user);
+      const post = await Post.exists({ _id: postId });
+      if (!post) throw new GraphQLError('Post not found', { extensions: { code: 'NOT_FOUND' } });
+      await User.findByIdAndUpdate(user._id, { $addToSet: { savedPosts: postId } });
+      return true;
+    },
+
+    unsavePost: async (_: unknown, { postId }: { postId: string }, { user }: GraphQLContext) => {
+      requireAuth(user);
+      await User.findByIdAndUpdate(user._id, { $pull: { savedPosts: postId } });
+      return true;
+    },
   },
 
   Post: {
@@ -299,6 +352,12 @@ export const postResolvers = {
       if (!user) return null;
       const r = parent.reactions?.find((r: any) => r.user.toString() === user._id.toString());
       return r ? r.type.toUpperCase() : null;
+    },
+
+    isSaved: (parent: any, _: unknown, { user }: GraphQLContext) => {
+      if (!user) return false;
+      const postId = (parent._id ?? parent.id).toString();
+      return (user.savedPosts ?? []).some((id: any) => id.toString() === postId);
     },
 
     reactionSummary: (parent: any) => {

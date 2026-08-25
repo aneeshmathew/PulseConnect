@@ -62,6 +62,21 @@ export const UpdateProfileSchema = z.object({
   website: z.string().url().optional().or(z.literal('')),
 });
 
+export const UpdatePrivacySettingsSchema = z.object({
+  profileVisibility: z.enum(['public', 'friends', 'private']).optional(),
+  postsVisibility: z.enum(['public', 'friends', 'private']).optional(),
+});
+
+export const UpdateNotificationSettingsSchema = z.object({
+  emailNotifications: z.boolean().optional(),
+  pushNotifications: z.boolean().optional(),
+});
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100),
+});
+
 /** Validate and throw a proper GraphQL error on failure */
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
   const result = schema.safeParse(data);

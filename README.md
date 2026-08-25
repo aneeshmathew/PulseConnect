@@ -265,11 +265,13 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Reaction picker popup closed before you could click it — fixed (2026-08-23 (5))
 - [x] Duplicated chat logic extracted into a shared hook — fixed (2026-08-23 (6))
 - [x] Apollo Server v4 EOL upgraded to v5 — fixed (2026-08-23 (6))
-- [ ] Five nav destinations remain (Watch, Marketplace, Saved, Events, Settings) — still "Coming Soon" placeholders.
+- [x] Saved page — real bookmarking, replaced the "Coming Soon" placeholder (2026-08-24 (1))
+- [x] Settings page — privacy, notifications, password change, dark mode, real backend behind all of it (2026-08-24 (2))
+- [ ] Three nav destinations remain: Watch, Marketplace, Events — bigger builds needing new data models (video feed, listings, RSVPs), scoping in progress.
 
 ### Open items
 
-- [ ] Build real Watch / Marketplace / Saved / Events / Settings pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for any of these, so each is new feature work, not a quick fix.
+- [ ] Build real Watch / Marketplace / Events pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for any of these.
 - [ ] No automated test currently guards against a populated-list/ref field silently returning `null`, or against the Mongoose single-nested-subdocument default-object gotcha that caused entry 2026-08-22 (10). Worth a resolver-level integration test suite at some point — `GET_USER` with a seeded user that has friends, `feed`/`post` with a seeded post that has tags, `sendMessage` with a `recipientId` (no prior conversation), and a message with no `media` attached.
 - [ ] **Verify your Vercel project's Node.js runtime is set to 20.x or later.** Apollo Server 5 requires Node ≥20 — this is a project-level dashboard setting Claude cannot see or change remotely. If it's currently pinned to 18.x, the backend will fail to boot after this deploy. Check: Vercel dashboard → backend project → Settings → General → Node.js Version.
 
@@ -277,6 +279,8 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-08-24 (2) | Aug 24 | Settings page built for real — privacy, notifications, password, dark mode | ✅ Fixed |
+| 2026-08-24 (1) | Aug 24 | Saved page built for real — bookmarking a post now actually does something | ✅ Fixed |
 | 2026-08-23 (6) | Aug 23 | Chat logic duplication extracted into a shared hook; Apollo Server 4 (EOL) upgraded to 5 | ✅ Fixed |
 | 2026-08-23 (5) | Aug 23 | Reaction picker popup on Like closed before you could click an emoji | ✅ Fixed |
 | 2026-08-23 (4) | Aug 23 | Photos tab had no delete option; upload had no real server-side validation | ✅ Fixed |
@@ -300,6 +304,43 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-08-24 (2) — Settings page built for real
+
+**What was there before:** a "Coming Soon" placeholder. `User.privacySettings` and `User.notificationSettings` already existed as Mongoose schema fields with sensible defaults, but were completely unexposed — no GraphQL type, no query, no mutation, nothing. There was also no way to change your password at all anywhere in the app.
+
+**What this adds:**
+
+*Backend:*
+1. `PrivacySettings`/`NotificationSettings` GraphQL types, exposed on `User` — but only populated when the viewer **is** the account being queried (`me`, essentially). Anyone else querying returns `null` for these fields, same as if they didn't exist — settings aren't part of a public profile.
+2. `updatePrivacySettings` / `updateNotificationSettings` mutations — partial updates only touch the field you actually pass, using dotted-path `$set` (`privacySettings.profileVisibility`) rather than overwriting the whole sub-object, so changing one setting can't accidentally reset its sibling to a schema default.
+3. `changePassword(currentPassword, newPassword)` — verifies the current password via the existing `comparePassword` method before allowing the change, and re-fetches a real (non-lean) Mongoose document rather than reusing the lean `context.user`, since the password-hashing `pre('save')` hook only runs on `.save()`.
+
+*Frontend:* `frontend/src/pages/Settings.tsx` (new) — Privacy (profile/posts visibility, three-way radio), Notifications (email/push toggles), Appearance (dark mode — reuses the existing store toggle rather than duplicating it), Change Password (with a show/hide toggle and clear validation messages), and Log Out. All settings changes are optimistic (update the UI immediately, revert with a toast if the mutation fails) rather than waiting on a round-trip for a simple toggle.
+
+**Files touched:** `backend/src/models/User.ts` (no schema change needed — fields already existed), `backend/src/graphql/typedefs/index.ts`, `backend/src/graphql/resolvers/auth.resolvers.ts`, `backend/src/lib/validation.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/pages/Settings.tsx` (new), `frontend/src/App.tsx`
+
+**Status:** ✅ Fixed, typechecked clean, verified with a real production build.
+
+### 2026-08-24 (1) — Saved page built for real
+
+**What was there before:** a "Coming Soon" placeholder, and — found while investigating — `PostCard.tsx`'s post menu already had a "Save post" button rendered, with **no `onClick` handler at all**. Same class of gap as the "New message" pencil icon and the Photos tab delete button before those got fixed: UI that looked finished but did nothing, and zero backend support behind it (no field on `User`, no mutation, no query).
+
+**What this adds:**
+
+*Backend:*
+1. `User.savedPosts: [ObjectId]` — a plain array of post ids, not subdocuments (there's nothing else to store per save, so no need for the extra structure — and no per-save timestamp, which shapes the pagination approach below).
+2. `Post.isSaved: Boolean!` field resolver — computed per viewing user, same pattern as `myReaction`.
+3. `savePost(postId)` / `unsavePost(postId)` mutations — idempotent either direction via `$addToSet`/`$pull`.
+4. `savedPosts(cursor, limit)` query, same `FeedConnection` shape as `feed`/`userPosts`/`userPhotos` for a consistent pagination pattern — but since there's no per-save timestamp to cursor on (just an array of ids), this one cursors on a plain numeric offset instead of the date-based cursor the others use. `$addToSet` appends, so the array's natural order is oldest-saved-first; reversed for a most-recently-saved-first feed.
+
+*Frontend:* wired the existing "Save post" button in `PostCard.tsx` (toggles to "Remove from Saved" with a filled bookmark icon, optimistic UI via `cache.modify`) and built `frontend/src/pages/Saved.tsx` (new), which reuses `PostCard` directly rather than building separate rendering logic — same approach as the Photos tab and the post detail page.
+
+**Related finding, not fixed:** `PostCard.tsx`'s "Edit post" button has the exact same problem — no `onClick` handler — but the backend `updatePost(id, content)` mutation already exists. Flagged as an open item; out of scope for today since it wasn't part of the nav-placeholder request, but it's a small, well-scoped fix whenever it's next up.
+
+**Files touched:** `backend/src/models/User.ts`, `backend/src/graphql/typedefs/index.ts`, `backend/src/graphql/resolvers/post.resolvers.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/components/Post/PostCard.tsx`, `frontend/src/pages/Saved.tsx` (new), `frontend/src/App.tsx`
+
+**Status:** ✅ Fixed, typechecked clean, verified with a real production build.
 
 ### 2026-08-23 (6) — Chat logic deduplicated into a shared hook; Apollo Server upgraded to v5
 

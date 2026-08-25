@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client';
 import { Toaster } from 'react-hot-toast';
-import { PlaySquare, Store, Bookmark, Calendar, Settings as SettingsIcon } from 'lucide-react';
+import { PlaySquare, Store, Calendar } from 'lucide-react';
 import { client } from '@/lib/apollo';
 import { useAuthStore } from '@/store';
 import { HomePage } from '@/pages/Home';
@@ -11,6 +11,8 @@ import { MessagesPage } from '@/pages/Messages';
 import { ComingSoonPage } from '@/pages/ComingSoon';
 import { FriendsPage } from '@/pages/Friends';
 import { PostDetailPage } from '@/pages/PostDetail';
+import { SavedPage } from '@/pages/Saved';
+import { SettingsPage } from '@/pages/Settings';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -41,15 +43,11 @@ export default function App() {
           <Route path="/marketplace" element={<PrivateRoute>
             <ComingSoonPage icon={Store} title="Marketplace" description="Buying and selling with your community is coming soon." />
           </PrivateRoute>} />
-          <Route path="/saved" element={<PrivateRoute>
-            <ComingSoonPage icon={Bookmark} title="Saved" description="Posts you save will show up here. This feature is still being built." />
-          </PrivateRoute>} />
+          <Route path="/saved" element={<PrivateRoute><SavedPage /></PrivateRoute>} />
           <Route path="/events" element={<PrivateRoute>
             <ComingSoonPage icon={Calendar} title="Events" description="Create and discover events with friends — coming soon." />
           </PrivateRoute>} />
-          <Route path="/settings" element={<PrivateRoute>
-            <ComingSoonPage icon={SettingsIcon} title="Settings" description="Account, privacy, and notification settings are coming soon." />
-          </PrivateRoute>} />
+          <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

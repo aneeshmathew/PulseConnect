@@ -22,6 +22,7 @@ export const POST_FIELDS = gql`
     media { url type thumbnail width height duration }
     reactionSummary { type count }
     myReaction
+    isSaved
     commentsCount
     sharesCount
     visibility
@@ -77,6 +78,40 @@ export const GET_ME = gql`
     me { ...UserFields bio location website birthDate email friendsCount postsCount createdAt coverPhoto }
   }
   ${USER_FIELDS}
+`;
+
+export const GET_MY_SETTINGS = gql`
+  query GetMySettings {
+    me {
+      id
+      privacySettings { profileVisibility postsVisibility }
+      notificationSettings { emailNotifications pushNotifications }
+    }
+  }
+`;
+
+export const UPDATE_PRIVACY_SETTINGS = gql`
+  mutation UpdatePrivacySettings($input: UpdatePrivacySettingsInput!) {
+    updatePrivacySettings(input: $input) {
+      id
+      privacySettings { profileVisibility postsVisibility }
+    }
+  }
+`;
+
+export const UPDATE_NOTIFICATION_SETTINGS = gql`
+  mutation UpdateNotificationSettings($input: UpdateNotificationSettingsInput!) {
+    updateNotificationSettings(input: $input) {
+      id
+      notificationSettings { emailNotifications pushNotifications }
+    }
+  }
+`;
+
+export const CHANGE_PASSWORD = gql`
+  mutation ChangePassword($currentPassword: String!, $newPassword: String!) {
+    changePassword(currentPassword: $currentPassword, newPassword: $newPassword)
+  }
 `;
 
 export const GET_FEED = gql`
@@ -141,6 +176,29 @@ export const GET_USER_PHOTOS = gql`
       hasMore
       nextCursor
     }
+  }
+`;
+
+export const GET_SAVED_POSTS = gql`
+  query GetSavedPosts($cursor: String, $limit: Int) {
+    savedPosts(cursor: $cursor, limit: $limit) {
+      posts { ...PostFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${POST_FIELDS}
+`;
+
+export const SAVE_POST = gql`
+  mutation SavePost($postId: ID!) {
+    savePost(postId: $postId)
+  }
+`;
+
+export const UNSAVE_POST = gql`
+  mutation UnsavePost($postId: ID!) {
+    unsavePost(postId: $postId)
   }
 `;
 

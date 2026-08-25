@@ -3,7 +3,7 @@ import { User } from '../../models/User';
 import { Post } from '../../models/Post';
 import { GraphQLContext, requireAuth } from '../context';
 import { GraphQLError } from 'graphql';
-import { validate, RegisterSchema, UpdateProfileSchema } from '../../lib/validation';
+import { validate, RegisterSchema, UpdateProfileSchema, UpdatePrivacySettingsSchema, UpdateNotificationSettingsSchema, ChangePasswordSchema } from '../../lib/validation';
 
 const generateToken = (userId: string): string => {
   const secret = process.env.JWT_SECRET;
@@ -93,6 +93,44 @@ export const authResolvers = {
       return User.findByIdAndUpdate(user._id, { $set: data }, { new: true }).select('-password').lean();
     },
 
+    updatePrivacySettings: async (_: unknown, { input }: { input: unknown }, { user }: GraphQLContext) => {
+      requireAuth(user);
+      const data = validate(UpdatePrivacySettingsSchema, input);
+      // Nested-path $set so a partial input (e.g. just profileVisibility)
+      // doesn't clobber the sibling field back to its schema default.
+      const set: Record<string, any> = {};
+      if (data.profileVisibility) set['privacySettings.profileVisibility'] = data.profileVisibility;
+      if (data.postsVisibility) set['privacySettings.postsVisibility'] = data.postsVisibility;
+      return User.findByIdAndUpdate(user._id, { $set: set }, { new: true }).select('-password').lean();
+    },
+
+    updateNotificationSettings: async (_: unknown, { input }: { input: unknown }, { user }: GraphQLContext) => {
+      requireAuth(user);
+      const data = validate(UpdateNotificationSettingsSchema, input);
+      const set: Record<string, any> = {};
+      if (data.emailNotifications !== undefined) set['notificationSettings.emailNotifications'] = data.emailNotifications;
+      if (data.pushNotifications !== undefined) set['notificationSettings.pushNotifications'] = data.pushNotifications;
+      return User.findByIdAndUpdate(user._id, { $set: set }, { new: true }).select('-password').lean();
+    },
+
+    changePassword: async (_: unknown, args: unknown, { user }: GraphQLContext) => {
+      requireAuth(user);
+      const { currentPassword, newPassword } = validate(ChangePasswordSchema, args);
+      // Need the real Mongoose document (not the lean/no-password context
+      // user) so comparePassword() and the pre('save') hashing hook both
+      // work — same reason updateAvatar etc. re-fetch rather than reusing
+      // context.user for anything password-related.
+      const fullUser = await User.findById(user._id);
+      if (!fullUser) throw new GraphQLError('User not found', { extensions: { code: 'NOT_FOUND' } });
+
+      const isValid = await fullUser.comparePassword(currentPassword);
+      if (!isValid) throw new GraphQLError('Current password is incorrect', { extensions: { code: 'BAD_USER_INPUT' } });
+
+      fullUser.password = newPassword; // pre('save') hook hashes this automatically
+      await fullUser.save();
+      return true;
+    },
+
     updateAvatar: async (_: unknown, { url }: { url: string }, { user }: GraphQLContext) => {
       requireAuth(user);
       if (!url.startsWith('http')) throw new GraphQLError('Invalid URL');
@@ -110,6 +148,21 @@ export const authResolvers = {
     id: (parent: any) => parent._id?.toString() ?? parent.id,
     fullName: (parent: any) => `${parent.firstName} ${parent.lastName}`,
     friendsCount: (parent: any) => parent.friends?.length ?? 0,
+
+    // Settings are private — only ever return real values when the
+    // viewer IS the account being queried (e.g. the Settings page's own
+    // `me` query). Anyone else querying this user's settings gets null,
+    // same as if the field simply wasn't there.
+    privacySettings: (parent: any, _: unknown, { user }: GraphQLContext) => {
+      const parentId = (parent._id ?? parent.id)?.toString();
+      if (!user || user._id.toString() !== parentId) return null;
+      return parent.privacySettings ?? { profileVisibility: 'public', postsVisibility: 'public' };
+    },
+    notificationSettings: (parent: any, _: unknown, { user }: GraphQLContext) => {
+      const parentId = (parent._id ?? parent.id)?.toString();
+      if (!user || user._id.toString() !== parentId) return null;
+      return parent.notificationSettings ?? { emailNotifications: true, pushNotifications: true };
+    },
 
     // `parent.friends` is just an array of ObjectIds on the raw Mongo doc.
     // Without this resolver, GraphQL tries to resolve each raw ObjectId as a

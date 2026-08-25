@@ -7,7 +7,7 @@ import {
   Globe, Users, Lock, MapPin, Edit2, Trash2, Bookmark,
   AlertCircle,
 } from 'lucide-react';
-import { REACT_TO_POST, REMOVE_REACTION, DELETE_POST } from '@/lib/graphql';
+import { REACT_TO_POST, REMOVE_REACTION, DELETE_POST, SAVE_POST, UNSAVE_POST } from '@/lib/graphql';
 import { Avatar } from '@/components/UI/Avatar';
 import { CommentSection } from '@/components/Post/CommentSection';
 import { timeAgo, cn, REACTION_EMOJIS, REACTION_COLORS } from '@/utils';
@@ -30,6 +30,7 @@ interface Post {
   media?: { url: string; type: string; thumbnail?: string }[];
   reactionSummary?: { type: string; count: number }[];
   myReaction?: string | null;
+  isSaved?: boolean;
   commentsCount?: number;
   sharesCount?: number;
   comments?: any[];
@@ -66,6 +67,18 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
       cache.gc();
     },
   });
+  const [savePost] = useMutation(SAVE_POST, {
+    optimisticResponse: { savePost: true },
+    update(cache) {
+      cache.modify({ id: `Post:${post.id}`, fields: { isSaved: () => true } });
+    },
+  });
+  const [unsavePost] = useMutation(UNSAVE_POST, {
+    optimisticResponse: { unsavePost: true },
+    update(cache) {
+      cache.modify({ id: `Post:${post.id}`, fields: { isSaved: () => false } });
+    },
+  });
 
   const myReaction = post.myReaction;
   const totalReactions = post.reactionSummary?.reduce((s, r) => s + r.count, 0) ?? 0;
@@ -98,6 +111,21 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
     setShowMenu(false);
     setConfirmDelete(false);
   }, [deletePost, post.id]);
+
+  const handleToggleSave = useCallback(async () => {
+    setShowMenu(false);
+    try {
+      if (post.isSaved) {
+        await unsavePost({ variables: { postId: post.id } });
+        toast.success('Removed from Saved');
+      } else {
+        await savePost({ variables: { postId: post.id } });
+        toast.success('Saved');
+      }
+    } catch {
+      toast.error('Failed to update saved posts');
+    }
+  }, [post.isSaved, post.id, savePost, unsavePost]);
 
   const onReactionEnter = useCallback(() => {
     // Always clear whatever's pending first — this is what makes hover
@@ -176,8 +204,12 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
                 transition={{ duration: 0.12 }}
                 className="absolute right-0 mt-1 w-52 bg-white dark:bg-surface-dark-2 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-20 overflow-hidden"
               >
-                <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 text-sm text-left text-gray-700 dark:text-gray-200">
-                  <Bookmark size={15} /> Save post
+                <button
+                  onClick={handleToggleSave}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 text-sm text-left text-gray-700 dark:text-gray-200"
+                >
+                  <Bookmark size={15} className={cn(post.isSaved && 'fill-current text-brand-500')} />
+                  {post.isSaved ? 'Remove from Saved' : 'Save post'}
                 </button>
                 {isOwner && (
                   <>

@@ -16,6 +16,7 @@ export interface IUser extends Document {
   birthDate?: Date;
   friends: mongoose.Types.ObjectId[];
   friendRequests: { from: mongoose.Types.ObjectId; sentAt: Date }[];
+  savedPosts: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
   followers: mongoose.Types.ObjectId[];
   isOnline: boolean;
@@ -69,6 +70,11 @@ const userSchema = new Schema<IUser>(
       from: { type: Schema.Types.ObjectId, ref: 'User', required: true },
       sentAt: { type: Date, default: Date.now },
     }],
+    // Backs the Saved page — bookmarked posts, not tied to friendship or
+    // ownership. A plain array of ids (not full subdocuments) since there's
+    // nothing else to store per save (no "saved at" timestamp needed for
+    // the UI as designed — most-recently-saved-first isn't a requirement).
+    savedPosts: [{ type: Schema.Types.ObjectId, ref: 'Post' }],
     following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     isOnline: { type: Boolean, default: false },

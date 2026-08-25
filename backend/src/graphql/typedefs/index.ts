@@ -36,6 +36,20 @@ export const typeDefs = gql`
     posts: [Post!]
     postsCount: Int!
     createdAt: DateTime!
+    # Only populated when viewing your own account (id === the requesting
+    # user) — settings are private, not part of a public profile view.
+    privacySettings: PrivacySettings
+    notificationSettings: NotificationSettings
+  }
+
+  type PrivacySettings {
+    profileVisibility: String!
+    postsVisibility: String!
+  }
+
+  type NotificationSettings {
+    emailNotifications: Boolean!
+    pushNotifications: Boolean!
   }
 
   type FriendRequest {
@@ -71,6 +85,7 @@ export const typeDefs = gql`
     reactions: [Reaction!]
     reactionSummary: [ReactionSummary!]
     myReaction: ReactionType
+    isSaved: Boolean!
     commentsCount: Int!
     sharesCount: Int!
     comments(limit: Int, offset: Int): [Comment!]
@@ -261,6 +276,10 @@ export const typeDefs = gql`
     # userPhotos resolver in post.resolvers.ts for why this is a separate
     # query rather than filtering userPosts client-side).
     userPhotos(userId: ID!, cursor: String, limit: Int): FeedConnection!
+    # Backs the Saved page — the current user's bookmarked posts, newest
+    # bookmark first. Same connection shape as feed/userPosts/userPhotos
+    # for a consistent pagination pattern across all post-list views.
+    savedPosts(cursor: String, limit: Int): FeedConnection!
 
     # Comments
     comments(postId: ID!, cursor: String, limit: Int): [Comment!]!
@@ -289,6 +308,9 @@ export const typeDefs = gql`
 
     # Profile
     updateProfile(input: UpdateProfileInput!): User!
+    updatePrivacySettings(input: UpdatePrivacySettingsInput!): User!
+    updateNotificationSettings(input: UpdateNotificationSettingsInput!): User!
+    changePassword(currentPassword: String!, newPassword: String!): Boolean!
     updateAvatar(url: String!): User!
     updateCoverPhoto(url: String!): User!
 
@@ -313,6 +335,11 @@ export const typeDefs = gql`
     removeReaction(postId: ID!): Post!
     sharePost(postId: ID!, content: String): Post!
     pinPost(postId: ID!): Post!
+    # Bookmarking — independent of ownership/friendship, backs the Saved
+    # page. Idempotent either direction (saving an already-saved post, or
+    # unsaving one that isn't saved, both just succeed as a no-op).
+    savePost(postId: ID!): Boolean!
+    unsavePost(postId: ID!): Boolean!
 
     # Comments
     createComment(input: CreateCommentInput!): Comment!
@@ -383,6 +410,16 @@ export const typeDefs = gql`
     location: String
     website: String
     birthDate: DateTime
+  }
+
+  input UpdatePrivacySettingsInput {
+    profileVisibility: String
+    postsVisibility: String
+  }
+
+  input UpdateNotificationSettingsInput {
+    emailNotifications: Boolean
+    pushNotifications: Boolean
   }
 
   input CreatePostInput {
