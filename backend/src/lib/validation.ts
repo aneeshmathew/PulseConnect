@@ -60,6 +60,8 @@ export const UpdateProfileSchema = z.object({
   bio: z.string().max(500).optional(),
   location: z.string().max(200).optional(),
   website: z.string().url().optional().or(z.literal('')),
+  avatar: z.string().url().optional(),
+  coverPhoto: z.string().url().optional(),
 });
 
 export const UpdatePrivacySettingsSchema = z.object({

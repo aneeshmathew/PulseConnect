@@ -136,7 +136,7 @@ export const typeDefs = gql`
   type Story {
     id: ID!
     author: User!
-    media: StoryMedia!
+    media: StoryMedia
     text: String
     backgroundColor: String
     views: [StoryView!]
@@ -410,6 +410,8 @@ export const typeDefs = gql`
     location: String
     website: String
     birthDate: DateTime
+    avatar: String
+    coverPhoto: String
   }
 
   input UpdatePrivacySettingsInput {
@@ -453,8 +455,8 @@ export const typeDefs = gql`
   }
 
   input CreateStoryInput {
-    mediaUrl: String!
-    mediaType: String!
+    mediaUrl: String
+    mediaType: String
     text: String
     backgroundColor: String
     expiresInHours: Int

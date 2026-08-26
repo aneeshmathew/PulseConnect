@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@apollo/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { GET_STORIES } from '@/lib/graphql';
+import { CreateStoryModal } from '@/components/Stories/CreateStoryModal';
 import { Avatar } from '@/components/UI/Avatar';
 import { StorySkeleton } from '@/components/UI/Skeleton';
 import { useAuthStore } from '@/store';
@@ -213,6 +214,7 @@ function StoryViewer({ groups, initialGroupIdx, onClose }: ViewerProps) {
 export function StoriesBar() {
   const { user } = useAuthStore();
   const [viewerGroupIdx, setViewerGroupIdx] = useState<number | null>(null);
+  const [showCreateStory, setShowCreateStory] = useState(false);
   const { data, loading } = useQuery(GET_STORIES);
 
   const groups: any[] = data?.stories ?? [];
@@ -225,7 +227,13 @@ export function StoriesBar() {
         aria-label="Stories"
       >
         {/* Add your story */}
-        <div className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer group">
+        <div
+          onClick={() => setShowCreateStory(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowCreateStory(true); }}
+          className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer group"
+        >
           <div className="relative">
             <Avatar src={user?.avatar} name={user?.fullName ?? 'Me'} size="lg" />
             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center border-2 border-white dark:border-surface-dark-2 group-hover:bg-brand-600 transition-colors">
@@ -274,6 +282,13 @@ export function StoriesBar() {
             initialGroupIdx={viewerGroupIdx}
             onClose={() => setViewerGroupIdx(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Create story overlay */}
+      <AnimatePresence>
+        {showCreateStory && (
+          <CreateStoryModal onClose={() => setShowCreateStory(false)} />
         )}
       </AnimatePresence>
     </>

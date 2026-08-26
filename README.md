@@ -267,6 +267,8 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Apollo Server v4 EOL upgraded to v5 — fixed (2026-08-23 (6))
 - [x] Saved page — real bookmarking, replaced the "Coming Soon" placeholder (2026-08-24 (1))
 - [x] Settings page — privacy, notifications, password change, dark mode, real backend behind all of it (2026-08-24 (2))
+- [x] "Add Story" (+) had no `onClick` handler; text-only stories were blocked by an overly strict schema constraint — both fixed (2026-08-24 (3))
+- [x] Edit Cover Photo / Edit Profile Photo buttons had no `onClick` handlers — fixed (2026-08-24 (4))
 - [ ] Three nav destinations remain: Watch, Marketplace, Events — bigger builds needing new data models (video feed, listings, RSVPs), scoping in progress.
 
 ### Open items
@@ -279,6 +281,8 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-08-24 (4) | Aug 24 | Edit Cover Photo / Edit Profile Photo buttons had no handlers | ✅ Fixed |
+| 2026-08-24 (3) | Aug 24 | "Add Story" (+) had no handler; text-only stories were blocked by schema | ✅ Fixed |
 | 2026-08-24 (2) | Aug 24 | Settings page built for real — privacy, notifications, password, dark mode | ✅ Fixed |
 | 2026-08-24 (1) | Aug 24 | Saved page built for real — bookmarking a post now actually does something | ✅ Fixed |
 | 2026-08-23 (6) | Aug 23 | Chat logic duplication extracted into a shared hook; Apollo Server 4 (EOL) upgraded to 5 | ✅ Fixed |
@@ -304,6 +308,40 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-08-24 (4) — Edit Cover Photo / Edit Profile Photo now work
+
+**What was there before:** both buttons rendered fully styled, with icons and hover states — and neither had an `onClick` handler at all. Same class of gap as several others found this session (Save post, New message, Edit post). The backend's `updateProfile` mutation already existed for text fields (bio, location, etc.) but had no `avatar`/`coverPhoto` fields to update either — the photo-upload path genuinely didn't exist anywhere, frontend or backend.
+
+**Fix:**
+1. Added `avatar`/`coverPhoto` (both optional URLs) to `UpdateProfileInput` and its Zod validation — the resolver already did a generic `$set: data`, so no resolver code changes were needed once the schema accepted them.
+2. Wired both buttons to the same Cloudinary upload flow the post composer already uses (`uploadMedia()`) — pick a file, upload it, then call `updateProfile` with the resulting URL.
+3. Added a small camera-icon button directly on the avatar (the more standard place people expect to click to change a profile photo), in addition to fixing the existing "Edit cover photo" button in place.
+4. The online-status green dot and the new camera button would have overlapped in the same corner on your own profile — the dot now only shows on other people's profiles, where the camera button doesn't exist anyway.
+
+No `refetchQueries` needed — `updateProfile`'s own mutation response already returns the updated fields, and Apollo's normalized cache updates the same `User` entity the profile page is already reading from.
+
+**Files touched:** `backend/src/graphql/typedefs/index.ts`, `backend/src/lib/validation.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/pages/Profile.tsx`
+
+**Status:** ✅ Fixed, typechecked clean, verified with a real production build.
+
+### 2026-08-24 (3) — "Add Story" now works; text-only stories were also being blocked by an overly strict schema
+
+**Two issues, reported together:**
+
+1. **Clicking the "+" on your own story badge did nothing** — `StoriesBar.tsx`'s "Add your story" element was a plain `<div>` with no click handler at all.
+2. **Friends' stories disappearing after a day** — this turned out to be **correct, intended behavior**, not a bug: the seed script sets `expiresAt` to exactly 24 hours from whenever it's run, matching how Stories work on Instagram/Facebook/Snapchat everywhere. The seeded stories genuinely expired on schedule. Re-running `npm run seed` generates fresh ones — no code change needed or appropriate here, since "expires after 24h" is the entire point of a Story.
+
+**What the Add Story fix uncovered:** `CreateStoryInput.mediaUrl`/`mediaType` were required (`String!`), and `Story.media` itself was non-nullable — meaning a text-only story (just a colored background and some text) could never actually be created, even though `text`/`backgroundColor` fields existed on the type and the story *viewer* already had full rendering logic for a text-only story with no media. The creation path just couldn't reach it. Additionally, `Story.ts`'s Mongoose schema marked `media.url`/`media.type` as `required: true`, which is what had been silently preventing the exact same "empty object default" bug that hit `Message.media` back in entry 2026-08-22 (10) — required fields meant Mongoose validation would reject an incomplete document rather than silently saving a broken one, but it also meant text-only stories were flatly impossible.
+
+**Fix:**
+1. `backend/src/models/Story.ts` — `media` relaxed to optional, wrapped as an explicit sub-schema with `default: undefined` (same fix pattern as `Message.media`, applied proactively this time rather than after a bug report).
+2. `Story.media` (GraphQL) made nullable; `CreateStoryInput.mediaUrl`/`mediaType` made optional; resolver now requires *either* media or non-empty text, not always media.
+3. `frontend/src/components/Stories/CreateStoryModal.tsx` (new) — lets you create a photo/video story (uploaded via the same Cloudinary flow as everything else) or a text-only story with a background color picker, live preview matching what the viewer will actually show.
+
+**Files touched:** `backend/src/models/Story.ts`, `backend/src/graphql/typedefs/index.ts`, `backend/src/graphql/resolvers/other.resolvers.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/components/Stories/StoriesBar.tsx`, `frontend/src/components/Stories/CreateStoryModal.tsx` (new)
+
+**Status:** ✅ Fixed, typechecked clean, verified with a real production build.
 
 ### 2026-08-24 (2) — Settings page built for real
 

@@ -1,20 +1,20 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { motion } from 'framer-motion';
 import {
-  MapPin, Link2, Calendar, UserPlus, UserCheck, MessageCircle, Edit2, Play, Trash2,
+  MapPin, Link2, Calendar, UserPlus, UserCheck, MessageCircle, Edit2, Play, Trash2, Camera,
 } from 'lucide-react';
 import {
   GET_USER, GET_USER_POSTS, GET_USER_PHOTOS,
-  SEND_FRIEND_REQUEST, ACCEPT_FRIEND_REQUEST, DELETE_POST,
+  SEND_FRIEND_REQUEST, ACCEPT_FRIEND_REQUEST, DELETE_POST, UPDATE_PROFILE,
 } from '@/lib/graphql';
 import { Avatar } from '@/components/UI/Avatar';
 import { PostCard } from '@/components/Post/PostCard';
 import { PostSkeleton } from '@/components/UI/Skeleton';
 import { AppLayout } from './Home';
 import { useAuthStore, useUIStore } from '@/store';
-import { formatDate, cn } from '@/utils';
+import { formatDate, cn, uploadMedia } from '@/utils';
 import toast from 'react-hot-toast';
 
 const TABS = ['Posts', 'About', 'Friends', 'Photos'] as const;
@@ -68,6 +68,40 @@ export function ProfilePage() {
       toast.error('Failed to delete post');
     }
     setConfirmDeletePostId(null);
+  };
+
+  // Avatar / cover photo upload — reuses the same Cloudinary signed-upload
+  // flow as the post composer (uploadMedia()), then just points
+  // updateProfile at the resulting URL. Apollo's normalized cache updates
+  // this User entity automatically from the mutation's own response, no
+  // refetch needed, since Profile's GET_USER query reads the same entity.
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [updateProfile] = useMutation(UPDATE_PROFILE);
+
+  const handlePhotoChange = async (file: File | undefined, field: 'avatar' | 'coverPhoto') => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Image must be under 25MB');
+      return;
+    }
+    const setUploading = field === 'avatar' ? setUploadingAvatar : setUploadingCover;
+    setUploading(true);
+    try {
+      const { url } = await uploadMedia(file);
+      await updateProfile({ variables: { input: { [field]: url } } });
+      toast.success(field === 'avatar' ? 'Profile photo updated' : 'Cover photo updated');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to update photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const [sendRequest, { loading: sendingReq }] = useMutation(SEND_FRIEND_REQUEST, {
@@ -145,9 +179,22 @@ export function ProfilePage() {
               <img src={profile.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
             )}
             {isOwner && (
-              <button className="absolute bottom-3 right-3 flex items-center gap-2 px-3 py-1.5 bg-white/90 dark:bg-black/60 text-xs font-semibold text-gray-800 dark:text-white rounded-lg shadow hover:bg-white transition-colors">
-                <Edit2 size={12} /> Edit cover photo
-              </button>
+              <>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { handlePhotoChange(e.target.files?.[0], 'coverPhoto'); e.target.value = ''; }}
+                />
+                <button
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
+                  className="absolute bottom-3 right-3 flex items-center gap-2 px-3 py-1.5 bg-white/90 dark:bg-black/60 text-xs font-semibold text-gray-800 dark:text-white rounded-lg shadow hover:bg-white disabled:opacity-60 transition-colors"
+                >
+                  <Edit2 size={12} /> {uploadingCover ? 'Uploading…' : 'Edit cover photo'}
+                </button>
+              </>
             )}
           </div>
 
@@ -158,8 +205,28 @@ export function ProfilePage() {
                 <div className="inline-flex rounded-full border-4 border-white dark:border-surface-dark-2 overflow-hidden ring-2 ring-gray-100 dark:ring-gray-700">
                   <Avatar src={profile.avatar} name={profile.fullName} size="xl" />
                 </div>
-                {profile.isOnline && (
+                {profile.isOnline && !isOwner && (
                   <span className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-surface-dark-2" />
+                )}
+                {isOwner && (
+                  <>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { handlePhotoChange(e.target.files?.[0], 'avatar'); e.target.value = ''; }}
+                    />
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      aria-label="Edit profile photo"
+                      title="Edit profile photo"
+                      className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-gray-800/90 hover:bg-gray-900 disabled:opacity-60 flex items-center justify-center text-white shadow-md transition-colors border-2 border-white dark:border-surface-dark-2"
+                    >
+                      <Camera size={14} />
+                    </button>
+                  </>
                 )}
               </div>
 

@@ -270,14 +270,17 @@ export const storyResolvers = {
       requireAuth(user);
       const { mediaUrl, mediaType, text, backgroundColor, expiresInHours = 24 } = input;
 
-      if (!mediaUrl) throw new GraphQLError('Media URL is required', { extensions: { code: 'BAD_USER_INPUT' } });
+      const trimmedText = text?.trim();
+      if (!mediaUrl && !trimmedText) {
+        throw new GraphQLError('A story needs either a photo/video or some text', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
       const safeHours = Math.min(Math.max(1, expiresInHours), 24);
       const expiresAt = new Date(Date.now() + safeHours * 3_600_000);
 
       const story = await Story.create({
         author: user._id,
-        media: { url: mediaUrl, type: mediaType.toLowerCase() },
-        text: text?.trim(),
+        media: mediaUrl ? { url: mediaUrl, type: mediaType.toLowerCase() } : undefined,
+        text: trimmedText,
         backgroundColor,
         expiresAt,
       });

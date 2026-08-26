@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IStory extends Document {
   _id: mongoose.Types.ObjectId;
   author: mongoose.Types.ObjectId;
-  media: {
+  media?: {
     url: string;
     type: 'image' | 'video';
     duration?: number;
@@ -28,11 +28,25 @@ export interface IStory extends Document {
 const storySchema = new Schema<IStory>(
   {
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    // Optional — a story can be photo/video (media set) OR text-only (just
+    // `text` + `backgroundColor`, no media at all). Wrapped as an explicit
+    // sub-schema with `default: undefined` rather than the old shorthand
+    // `{ url: {...}, type: {...} }` object, which was `required: true` on
+    // both sub-fields — that actually *prevented* text-only stories from
+    // ever being saved, even though `text`/`backgroundColor`/`textStyle`/
+    // `gradient` below clearly show text-only stories were intended.
+    // Explicit sub-schema + `default: undefined` also avoids the Mongoose
+    // "single nested subdocument defaults to {}" gotcha that caused the
+    // Message.media bug earlier — same fix, applied here before it could
+    // bite in the same way.
     media: {
-      url: { type: String, required: true },
-      type: { type: String, enum: ['image', 'video'], required: true },
-      duration: Number,
-      thumbnail: String,
+      type: new Schema({
+        url: { type: String, required: true },
+        type: { type: String, enum: ['image', 'video'], required: true },
+        duration: Number,
+        thumbnail: String,
+      }, { _id: false }),
+      default: undefined,
     },
     text: String,
     textStyle: {

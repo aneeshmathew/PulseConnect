@@ -291,6 +291,12 @@ export const GET_STORIES = gql`
   ${USER_FIELDS}
 `;
 
+export const CREATE_STORY = gql`
+  mutation CreateStory($input: CreateStoryInput!) {
+    createStory(input: $input) { id }
+  }
+`;
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const LOGIN = gql`
@@ -421,7 +427,7 @@ export const MARK_NOTIFICATION_READ = gql`
 
 export const UPDATE_PROFILE = gql`
   mutation UpdateProfile($input: UpdateProfileInput!) {
-    updateProfile(input: $input) { ...UserFields bio location website }
+    updateProfile(input: $input) { ...UserFields bio location website coverPhoto }
   }
   ${USER_FIELDS}
 `;
