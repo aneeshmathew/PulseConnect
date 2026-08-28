@@ -89,11 +89,11 @@ export function CreateStoryModal({ onClose }: CreateStoryModalProps) {
       onClick={onClose}
     >
       <div
-        className="relative w-[360px] max-h-[90vh] bg-white dark:bg-surface-dark-2 rounded-2xl overflow-hidden flex flex-col"
+        className="relative w-[360px] max-h-[85vh] bg-white dark:bg-surface-dark-2 rounded-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
           <h2 className="font-bold text-gray-900 dark:text-white">Create story</h2>
           <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <X size={20} />
@@ -101,7 +101,7 @@ export function CreateStoryModal({ onClose }: CreateStoryModalProps) {
         </div>
 
         {/* Mode tabs */}
-        <div className="flex gap-1 px-4 pt-3">
+        <div className="flex gap-1 px-4 pt-3 flex-shrink-0">
           <button
             onClick={() => setMode('photo')}
             className={cn(
@@ -122,9 +122,11 @@ export function CreateStoryModal({ onClose }: CreateStoryModalProps) {
           </button>
         </div>
 
-        {/* Preview area — 9:16-ish, matches the story viewer's aspect */}
-        <div className="p-4">
-          <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center">
+        {/* Scrollable body — preview + controls. Capped so the header and
+            Share button below always stay visible regardless of viewport
+            height, instead of the whole modal overflowing off-screen. */}
+        <div className="p-4 overflow-y-auto flex-1 min-h-0">
+          <div className="relative w-full aspect-[9/16] max-h-[45vh] mx-auto rounded-xl overflow-hidden bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center">
             {mode === 'photo' ? (
               pendingFile ? (
                 <>
@@ -209,7 +211,7 @@ export function CreateStoryModal({ onClose }: CreateStoryModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-2 flex-shrink-0 border-t border-gray-100 dark:border-gray-700">
           <button
             onClick={handleShare}
             disabled={!canShare || posting}

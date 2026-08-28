@@ -7,7 +7,7 @@ import {
   Globe, Users, Lock, MapPin, Edit2, Trash2, Bookmark,
   AlertCircle,
 } from 'lucide-react';
-import { REACT_TO_POST, REMOVE_REACTION, DELETE_POST, SAVE_POST, UNSAVE_POST } from '@/lib/graphql';
+import { REACT_TO_POST, REMOVE_REACTION, DELETE_POST, SAVE_POST, UNSAVE_POST, UPDATE_POST } from '@/lib/graphql';
 import { Avatar } from '@/components/UI/Avatar';
 import { CommentSection } from '@/components/Post/CommentSection';
 import { timeAgo, cn, REACTION_EMOJIS, REACTION_COLORS } from '@/utils';
@@ -57,6 +57,8 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
   const [showReactions, setShowReactions] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(post.content ?? '');
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [reactToPost, { loading: reacting }] = useMutation(REACT_TO_POST);
@@ -79,6 +81,7 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
       cache.modify({ id: `Post:${post.id}`, fields: { isSaved: () => false } });
     },
   });
+  const [updatePost, { loading: savingEdit }] = useMutation(UPDATE_POST);
 
   const myReaction = post.myReaction;
   const totalReactions = post.reactionSummary?.reduce((s, r) => s + r.count, 0) ?? 0;
@@ -126,6 +129,36 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
       toast.error('Failed to update saved posts');
     }
   }, [post.isSaved, post.id, savePost, unsavePost]);
+
+  const handleStartEdit = useCallback(() => {
+    setEditText(post.content ?? '');
+    setIsEditing(true);
+    setShowMenu(false);
+  }, [post.content]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditText(post.content ?? '');
+  }, [post.content]);
+
+  const handleSaveEdit = useCallback(async () => {
+    const trimmed = editText.trim();
+    if (!trimmed) {
+      toast.error('Post cannot be empty');
+      return;
+    }
+    if (trimmed === post.content) {
+      setIsEditing(false);
+      return;
+    }
+    try {
+      await updatePost({ variables: { id: post.id, content: trimmed } });
+      setIsEditing(false);
+      toast.success('Post updated');
+    } catch (err: any) {
+      toast.error(err?.graphQLErrors?.[0]?.message ?? 'Failed to update post');
+    }
+  }, [editText, post.content, post.id, updatePost]);
 
   const onReactionEnter = useCallback(() => {
     // Always clear whatever's pending first — this is what makes hover
@@ -213,7 +246,10 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
                 </button>
                 {isOwner && (
                   <>
-                    <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 text-sm text-left text-gray-700 dark:text-gray-200">
+                    <button
+                      onClick={handleStartEdit}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 text-sm text-left text-gray-700 dark:text-gray-200"
+                    >
                       <Edit2 size={15} /> Edit post
                     </button>
                     {confirmDelete ? (
@@ -254,7 +290,34 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
       </div>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      {post.content && (
+      {isEditing ? (
+        <div className="px-4 pb-3">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            autoFocus
+            rows={3}
+            maxLength={20000}
+            className="w-full px-3 py-2.5 bg-gray-100 dark:bg-surface-dark-3 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+          />
+          <div className="flex items-center justify-end gap-2 mt-2">
+            <button
+              onClick={handleCancelEdit}
+              disabled={savingEdit}
+              className="px-3.5 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-dark-3 rounded-lg disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={savingEdit || !editText.trim()}
+              className="px-3.5 py-1.5 text-xs font-semibold bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              {savingEdit ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : post.content && (
         <div className="px-4 pb-3">
           <p
             className={cn(

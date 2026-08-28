@@ -13,17 +13,26 @@ import { cloudinary, cloudinaryConfigured } from '../config/cloudinary';
 //   1. Client asks this route for a signature (proves they're logged in).
 //   2. Client POSTs the actual file directly to Cloudinary's API using
 //      that signature — see frontend/src/utils/index.ts's uploadMedia().
-//   3. Cloudinary returns a permanent URL; the client sends that URL to
-//      createPost/createStory. This server only ever sees a URL string.
+//   3. Client reports the result back to POST /upload/verify, which checks
+//      the actual uploaded size and deletes+rejects it if it's too big.
+//   4. Only then does the client hand the URL to createPost/createStory.
+//      This server still never receives the file bytes themselves.
 //
 // Validation note: file type/size checks in the frontend composer
-// (CreatePost.tsx) are just a fast-fail UX nicety — they run in the
-// browser, so anyone could skip them and call Cloudinary directly with a
-// signature obtained from this route. ALLOWED_FORMATS and MAX_FILE_SIZE
-// below are included as *signed* parameters, which Cloudinary itself
-// enforces server-side: tampering with either value on the client
-// invalidates the signature, so this is real server-side validation, not
-// just client-side politeness duplicated in two places.
+// (CreatePost.tsx) are just a fast-fail UX nicety — anyone could skip them
+// and call Cloudinary directly with a signature obtained from this route.
+// ALLOWED_FORMATS below is a *signed* parameter, which Cloudinary enforces
+// server-side — tampering with it client-side invalidates the signature.
+//
+// MAX_FILE_SIZE_BYTES is enforced differently: Cloudinary's raw signed
+// /upload endpoint does NOT support a `max_file_size` parameter at all —
+// that's only available inside Upload Presets, and passing it ad-hoc here
+// previously broke every upload with "Invalid Signature" (Cloudinary
+// silently excludes unrecognized params when recomputing the signature to
+// verify it, so the signatures never matched once we started sending one).
+// Enforcing size without an upload preset means checking it *after* the
+// file lands — see /upload/verify below, which deletes anything oversized
+// via the Admin API before the client is allowed to use its URL.
 // ─────────────────────────────────────────────────────────────────────────
 
 const ALLOWED_FORMATS = 'jpg,jpeg,png,gif,webp,mp4,mov,webm';
@@ -50,7 +59,6 @@ uploadRouter.post('/upload/signature', requireAuthHeader, (req: AuthedRequest, r
     timestamp,
     folder,
     allowed_formats: ALLOWED_FORMATS,
-    max_file_size: MAX_FILE_SIZE_BYTES,
   };
   const signature = cloudinary.utils.api_sign_request(
     paramsToSign,
@@ -62,9 +70,31 @@ uploadRouter.post('/upload/signature', requireAuthHeader, (req: AuthedRequest, r
     timestamp,
     folder,
     allowedFormats: ALLOWED_FORMATS,
-    maxFileSize: MAX_FILE_SIZE_BYTES,
     apiKey: process.env.CLOUDINARY_API_KEY,
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
   });
+});
+
+// Called right after a successful Cloudinary upload, before the client uses
+// the URL for anything. Real server-side size enforcement: deletes the
+// asset via the Admin API (using our secret key, not exposed to the
+// browser) and rejects it if it's over the limit, so a tampered client
+// can't just skip the frontend's own size check and upload anything.
+uploadRouter.post('/upload/verify', requireAuthHeader, async (req: AuthedRequest, res: Response) => {
+  const { publicId, bytes, resourceType } = req.body ?? {};
+  if (!publicId || typeof bytes !== 'number') {
+    return res.status(400).json({ error: 'publicId and bytes are required' });
+  }
+
+  if (bytes > MAX_FILE_SIZE_BYTES) {
+    try {
+      await cloudinary.uploader.destroy(publicId, { resource_type: resourceType === 'video' ? 'video' : 'image' });
+    } catch (err) {
+      console.error('[upload/verify] Failed to delete oversized asset', publicId, err);
+    }
+    return res.status(400).json({ error: `File exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit` });
+  }
+
+  res.json({ ok: true });
 });
 

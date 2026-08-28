@@ -269,6 +269,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Settings page — privacy, notifications, password change, dark mode, real backend behind all of it (2026-08-24 (2))
 - [x] "Add Story" (+) had no `onClick` handler; text-only stories were blocked by an overly strict schema constraint — both fixed (2026-08-24 (3))
 - [x] Edit Cover Photo / Edit Profile Photo buttons had no `onClick` handlers — fixed (2026-08-24 (4))
+- [x] "Edit post" and "Edit profile" buttons had no handlers; Cloudinary uploads were 401ing on every request — all fixed (2026-08-24 (5))
 - [ ] Three nav destinations remain: Watch, Marketplace, Events — bigger builds needing new data models (video feed, listings, RSVPs), scoping in progress.
 
 ### Open items
@@ -281,6 +282,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-08-24 (5) | Aug 24 | "Edit post"/"Edit profile" had no handlers; Cloudinary uploads 401ing (bad signed param); Create Story modal cut off | ✅ Fixed |
 | 2026-08-24 (4) | Aug 24 | Edit Cover Photo / Edit Profile Photo buttons had no handlers | ✅ Fixed |
 | 2026-08-24 (3) | Aug 24 | "Add Story" (+) had no handler; text-only stories were blocked by schema | ✅ Fixed |
 | 2026-08-24 (2) | Aug 24 | Settings page built for real — privacy, notifications, password, dark mode | ✅ Fixed |
@@ -308,6 +310,24 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-08-24 (5) — Edit post, Edit profile, a broken Cloudinary signature, and a cut-off modal
+
+Four issues reported together in one round.
+
+**1. "Edit post" had no handler.** Same pattern as several other buttons this session — fully styled, did nothing. The backend `updatePost(id, content)` mutation already existed (flagged as a related finding back in entry (1)). Added an inline edit mode directly on the post card: clicking "Edit post" swaps the content into an editable textarea in place, with Cancel/Save — no separate modal needed since it's just editing text that's already visible. `post.isEdited` already had an "(edited)" label wired up in the UI from before; it just starts showing up now that posts can actually be edited.
+
+**2. "Edit profile" had no handler.** `frontend/src/components/Profile/EditProfileModal.tsx` (new) — first/last name, bio (with a character counter), location, website. All backed by the existing `updateProfile` mutation, which already supported every one of these fields — this was purely a missing UI. One small UX touch: if someone types `example.com` instead of `https://example.com`, it's normalized automatically rather than failing the backend's URL validation with a confusing error.
+
+**3. Cloudinary uploads returning 401 "Invalid Signature" on every upload.** This one was a real regression from the "no server-side upload validation" fix a few sessions back (2026-08-23 (4)). That fix added `max_file_size` as a *signed* parameter — but confirmed via Cloudinary's own docs, `max_file_size` is only a valid option inside **Upload Presets**, not a parameter you can pass on a raw signed `/upload` call. Cloudinary silently excluded it when recomputing the signature to verify the request, while our server had included it when generating the signature — the two never matched, so every single upload failed with "Invalid Signature," photo posts and stories alike.
+   - *Fix:* removed `max_file_size` from the signed params entirely (keeping `allowed_formats`, which — confirmed in Cloudinary's own error message reconstructing the correct string — genuinely does work as a signed raw-upload parameter). To avoid simply losing server-side size enforcement again, added a new `POST /api/upload/verify` step: after Cloudinary accepts the upload, the client reports the actual size back to our server, which deletes the asset via the Admin API (secret key, never exposed to the browser) and rejects it if it's over the limit. A tampered client can't bypass this the way it could bypass the old client-only check, since the deletion decision is made server-side.
+
+**4. Create Story modal cut off at the bottom, Share button inaccessible.** The modal's photo/video preview used a fixed `aspect-[9/16]` on a 360px-wide box (~640px tall) plus header/tabs/controls/footer, comfortably exceeding `90vh` on any reasonably-sized screen — and the container used `overflow-hidden`, so the excess just got clipped instead of becoming scrollable.
+   - *Fix:* restructured into header (pinned) → scrollable middle section (preview + controls) → footer (pinned), and capped the preview at `max-h-[45vh]` so it shrinks on shorter viewports instead of staying a fixed height regardless of screen size. The Share button is now always visible.
+
+**Files touched:** `backend/src/routes/upload.ts`, `frontend/src/utils/index.ts`, `frontend/src/components/Stories/CreateStoryModal.tsx`, `frontend/src/lib/graphql.ts`, `frontend/src/components/Post/PostCard.tsx`, `frontend/src/components/Profile/EditProfileModal.tsx` (new), `frontend/src/pages/Profile.tsx`
+
+**Status:** ✅ All four fixed, typechecked clean, verified with real production builds on both projects.
 
 ### 2026-08-24 (4) — Edit Cover Photo / Edit Profile Photo now work
 
@@ -374,7 +394,7 @@ No `refetchQueries` needed — `updateProfile`'s own mutation response already r
 
 *Frontend:* wired the existing "Save post" button in `PostCard.tsx` (toggles to "Remove from Saved" with a filled bookmark icon, optimistic UI via `cache.modify`) and built `frontend/src/pages/Saved.tsx` (new), which reuses `PostCard` directly rather than building separate rendering logic — same approach as the Photos tab and the post detail page.
 
-**Related finding, not fixed:** `PostCard.tsx`'s "Edit post" button has the exact same problem — no `onClick` handler — but the backend `updatePost(id, content)` mutation already exists. Flagged as an open item; out of scope for today since it wasn't part of the nav-placeholder request, but it's a small, well-scoped fix whenever it's next up.
+**Related finding, fixed separately:** `PostCard.tsx`'s "Edit post" button had the exact same problem — no `onClick` handler — but the backend `updatePost(id, content)` mutation already existed. Flagged here as out of scope for this entry; wired up shortly after in 2026-08-24 (5).
 
 **Files touched:** `backend/src/models/User.ts`, `backend/src/graphql/typedefs/index.ts`, `backend/src/graphql/resolvers/post.resolvers.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/components/Post/PostCard.tsx`, `frontend/src/pages/Saved.tsx` (new), `frontend/src/App.tsx`
 

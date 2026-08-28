@@ -355,6 +355,13 @@ export const DELETE_POST = gql`
   }
 `;
 
+export const UPDATE_POST = gql`
+  mutation UpdatePost($id: ID!, $content: String!) {
+    updatePost(id: $id, content: $content) { ...PostFields }
+  }
+  ${POST_FIELDS}
+`;
+
 export const SEND_FRIEND_REQUEST = gql`
   mutation SendFriendRequest($userId: ID!) {
     sendFriendRequest(userId: $userId) { id isFriend hasFriendRequest }

@@ -13,6 +13,7 @@ import { Avatar } from '@/components/UI/Avatar';
 import { PostCard } from '@/components/Post/PostCard';
 import { PostSkeleton } from '@/components/UI/Skeleton';
 import { AppLayout } from './Home';
+import { EditProfileModal } from '@/components/Profile/EditProfileModal';
 import { useAuthStore, useUIStore } from '@/store';
 import { formatDate, cn, uploadMedia } from '@/utils';
 import toast from 'react-hot-toast';
@@ -52,6 +53,7 @@ export function ProfilePage() {
   // pending confirmation, not which tile, since a multi-photo post has
   // several tiles that should all show the same confirm state together.
   const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [deletePost, { loading: deletingPhoto }] = useMutation(DELETE_POST, {
     update(cache, _data, { variables }) {
       cache.evict({ id: `Post:${variables?.id}` });
@@ -233,7 +235,10 @@ export function ProfilePage() {
               {/* Action buttons */}
               <div className="flex gap-2 pb-1">
                 {isOwner ? (
-                  <button className="flex items-center gap-2 px-5 py-2 bg-gray-100 dark:bg-surface-dark-3 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-colors text-gray-800 dark:text-white">
+                  <button
+                    onClick={() => setShowEditProfile(true)}
+                    className="flex items-center gap-2 px-5 py-2 bg-gray-100 dark:bg-surface-dark-3 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-colors text-gray-800 dark:text-white"
+                  >
                     <Edit2 size={15} /> Edit profile
                   </button>
                 ) : (
@@ -544,6 +549,10 @@ export function ProfilePage() {
           </div>
         )}
       </div>
+
+      {showEditProfile && (
+        <EditProfileModal profile={profile} onClose={() => setShowEditProfile(false)} />
+      )}
     </AppLayout>
   );
 }

@@ -73,7 +73,6 @@ interface UploadSignature {
   timestamp: number;
   folder: string;
   allowedFormats: string;
-  maxFileSize: number;
   apiKey: string;
   cloudName: string;
 }
@@ -92,7 +91,7 @@ async function getUploadSignature(): Promise<UploadSignature> {
 }
 
 export async function uploadMedia(file: File): Promise<UploadedMedia> {
-  const { signature, timestamp, folder, allowedFormats, maxFileSize, apiKey, cloudName } = await getUploadSignature();
+  const { signature, timestamp, folder, allowedFormats, apiKey, cloudName } = await getUploadSignature();
 
   const formData = new FormData();
   formData.append('file', file);
@@ -100,12 +99,13 @@ export async function uploadMedia(file: File): Promise<UploadedMedia> {
   formData.append('timestamp', String(timestamp));
   formData.append('signature', signature);
   formData.append('folder', folder);
-  // Every one of these must exactly match what the backend signed, or
-  // Cloudinary rejects the upload as tampered — that's what makes this
-  // real server-side enforcement rather than a client-side-only check:
-  // altering either value here without a matching signature just fails.
+  // Must exactly match what the backend signed, or Cloudinary rejects the
+  // upload as tampered. NOTE: max_file_size is deliberately NOT sent here
+  // — Cloudinary's raw signed /upload endpoint doesn't support it at all
+  // (it's an Upload Preset-only option), and including it used to break
+  // every upload with "Invalid Signature". Size is enforced after the
+  // fact instead — see the /api/upload/verify call below.
   formData.append('allowed_formats', allowedFormats);
-  formData.append('max_file_size', String(maxFileSize));
 
   // 'auto' lets Cloudinary accept either images or videos on the same
   // endpoint and pick the right resource_type itself.
@@ -117,6 +117,28 @@ export async function uploadMedia(file: File): Promise<UploadedMedia> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(body?.error?.message ?? `Upload failed (${res.status})`);
+  }
+
+  // Real server-side size enforcement: our backend checks the actual
+  // uploaded size and deletes it via the Admin API (using a secret key
+  // never exposed to the browser) if it's over the limit — this can't be
+  // bypassed by skipping the frontend's own pre-upload size check.
+  const token = localStorage.getItem('token');
+  const verifyRes = await fetch(`${apiBaseUrl()}/api/upload/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      publicId: body.public_id,
+      bytes: body.bytes,
+      resourceType: body.resource_type,
+    }),
+  });
+  if (!verifyRes.ok) {
+    const verifyBody = await verifyRes.json().catch(() => null);
+    throw new Error(verifyBody?.error ?? 'Upload was rejected');
   }
 
   const type: UploadedMedia['type'] =
