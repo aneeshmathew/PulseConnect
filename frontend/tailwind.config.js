@@ -9,9 +9,15 @@ export default {
         brand: {
           50:  '#eff6ff',
           100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
           500: '#1877F2',
           600: '#1565d8',
           700: '#1254be',
+          800: '#0f44a3',
+          900: '#0c3685',
+          950: '#082660',
         },
         surface: {
           DEFAULT:   '#ffffff',

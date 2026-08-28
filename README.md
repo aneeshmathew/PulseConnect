@@ -176,7 +176,31 @@ npm run dev:frontend  # http://localhost:5173
 
 ## 🔑 Key Features
 
-### Real-Time (WebSockets)
+### Real-Time: WebSockets (dev) vs Polling (production on Vercel)
+
+This app supports both, and which one is actually active depends on where it's running — this is architectural, not a bug:
+
+- **`backend/src/index.ts`** (the standalone dev server — `npm run dev`, or self-hosted on a normal long-running box) runs a real WebSocket server (`ws` + `graphql-ws`) alongside the HTTP server, listening on `/graphql`. Subscriptions here are genuine push-based real-time.
+- **`backend/api/`** (the Vercel serverless deployment) has **no WebSocket server** — serverless functions are short-lived request-in/response-out, they can't hold a persistent WS connection open, so this was never built for that entrypoint.
+
+The frontend decides which mode to use via `subscriptionsEnabled` in `frontend/src/lib/apollo.ts`:
+```js
+subscriptionsEnabled = VITE_ENABLE_SUBSCRIPTIONS === 'true' || isDevServer || isLocalhost
+```
+So local dev gets real WebSocket subscriptions; the live Vercel deployment falls back to polling unless `VITE_ENABLE_SUBSCRIPTIONS=true` is explicitly set (which it shouldn't be there, since no WS server exists to connect to).
+
+**Polling intervals in production** (`POLL_INTERVAL_MS` in `frontend/src/lib/apollo.ts`):
+
+| What | Interval |
+|---|---|
+| New chat messages | 3s |
+| Conversations list | 8s |
+| Feed new-posts check | 12s |
+
+Chat feels close to real-time (3s) but isn't a true push — it's the same UI either way, so this is invisible day-to-day, but worth knowing if you're debugging a "why didn't this update instantly" question on the live site specifically.
+
+**Future exploration:** getting genuine WebSocket subscriptions in production would need either (a) a separate always-on process outside this Vercel serverless setup — e.g. a small Node server on Railway/Render/Fly.io just for the WS layer — or (b) looking into Vercel's own realtime/Edge WebSocket support, which has been evolving and may now cover this use case. Either is a real infrastructure decision, not a quick code change, so it's flagged here for whenever that becomes worth prioritizing rather than attempted speculatively.
+
 - **Live feed** — new posts appear as toast banners
 - **Instant messaging** — chat with typing indicators
 - **Live notifications** — friend requests, likes, comments
@@ -270,6 +294,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] "Add Story" (+) had no `onClick` handler; text-only stories were blocked by an overly strict schema constraint — both fixed (2026-08-24 (3))
 - [x] Edit Cover Photo / Edit Profile Photo buttons had no `onClick` handlers — fixed (2026-08-24 (4))
 - [x] "Edit post" and "Edit profile" buttons had no handlers; Cloudinary uploads were 401ing on every request — all fixed (2026-08-24 (5))
+- [x] Settings page: unreadable selected-option text; toggle switches visually misaligned — fixed (2026-08-24 (6))
 - [ ] Three nav destinations remain: Watch, Marketplace, Events — bigger builds needing new data models (video feed, listings, RSVPs), scoping in progress.
 
 ### Open items
@@ -277,11 +302,13 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [ ] Build real Watch / Marketplace / Events pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for any of these.
 - [ ] No automated test currently guards against a populated-list/ref field silently returning `null`, or against the Mongoose single-nested-subdocument default-object gotcha that caused entry 2026-08-22 (10). Worth a resolver-level integration test suite at some point — `GET_USER` with a seeded user that has friends, `feed`/`post` with a seeded post that has tags, `sendMessage` with a `recipientId` (no prior conversation), and a message with no `media` attached.
 - [ ] **Verify your Vercel project's Node.js runtime is set to 20.x or later.** Apollo Server 5 requires Node ≥20 — this is a project-level dashboard setting Claude cannot see or change remotely. If it's currently pinned to 18.x, the backend will fail to boot after this deploy. Check: Vercel dashboard → backend project → Settings → General → Node.js Version.
+- [ ] **Explore real WebSocket subscriptions in production** (currently polling on Vercel — see the "Real-Time" section above for why). Two directions worth evaluating when this becomes a priority: a separate always-on WS process (Railway/Render/Fly.io), or Vercel's own evolving realtime/Edge WebSocket support. Not urgent — polling is functionally invisible to users today — but flagged so it doesn't get re-investigated from scratch later.
 
 ### At a glance
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-08-24 (6) | Aug 24 | Settings page unreadable text + misaligned toggles — traced to an incomplete Tailwind color palette | ✅ Fixed |
 | 2026-08-24 (5) | Aug 24 | "Edit post"/"Edit profile" had no handlers; Cloudinary uploads 401ing (bad signed param); Create Story modal cut off | ✅ Fixed |
 | 2026-08-24 (4) | Aug 24 | Edit Cover Photo / Edit Profile Photo buttons had no handlers | ✅ Fixed |
 | 2026-08-24 (3) | Aug 24 | "Add Story" (+) had no handler; text-only stories were blocked by schema | ✅ Fixed |
@@ -310,6 +337,22 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-08-24 (6) — Settings page: unreadable text and misaligned toggles, both traced to one root cause
+
+**Symptom (reported with a screenshot):** on the Settings page, the selected privacy option ("Public") showed white text that was nearly impossible to read against its background, and the notification toggle switches looked visually misaligned.
+
+**Root cause — an incomplete Tailwind color palette, not a one-off styling mistake.** `tailwind.config.js`'s `brand` color only defined shades `50, 100, 500, 600, 700`. Several components used `dark:bg-brand-900/20` for a "selected/active" highlight — but since `brand-900` doesn't exist, Tailwind's compiler can't generate CSS for it and silently drops the class entirely. That left only `bg-brand-50` (the light-mode class, a very pale near-white blue, `#eff6ff`) actually applying — in *both* light and dark mode, since it has no `dark:` prefix to scope it. Combined with `dark:text-white` (which **does** generate fine, since white is always available), the result was white text sitting on a near-white background in dark mode: exactly the unreadable combination in the screenshot. This wasn't isolated to Settings — the same `bg-brand-50 dark:bg-brand-900/20` pattern was copy-pasted into `Friends.tsx` and `CreateStoryModal.tsx` too, so those had the identical latent bug, just not yet reported.
+
+The toggle switches were a separate issue: the positioning math was actually exact (44px track, 20px knob, 2px margin on every side, in both states) — but the track had no `overflow-hidden`, so the knob's drop shadow could visually bleed past the pill's rounded corners, reading as "misaligned" even though the underlying position was correct.
+
+**Fix:**
+1. `tailwind.config.js` — completed the `brand` color scale (`200`–`950`), fixing the root cause for all three files that relied on shades which didn't exist, rather than patching each usage site individually. Verified by compiling and grepping the actual output CSS for the new color value, confirming Tailwind now generates real rules where it previously silently dropped them.
+2. `frontend/src/pages/Settings.tsx`'s `Toggle` component — added `overflow-hidden` to the track so any shadow bleed clips cleanly to the pill shape, and simplified the knob's position math to be equally exact but easier to verify at a glance (same rendered result: 2px margin on every side, in both states).
+
+**Files touched:** `frontend/tailwind.config.js`, `frontend/src/pages/Settings.tsx`
+
+**Status:** ✅ Fixed, typechecked clean, verified with a real production build — confirmed the new color literally appears in the compiled CSS output, not just that the config parses.
 
 ### 2026-08-24 (5) — Edit post, Edit profile, a broken Cloudinary signature, and a cut-off modal
 
