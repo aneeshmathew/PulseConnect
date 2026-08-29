@@ -1,7 +1,34 @@
 # PulseConnect — Full-Stack Facebook-Style Social Network
 
-A production-ready, full-stack social media platform built with TypeScript, React, GraphQL, WebSockets, and MongoDB. Features real-time streaming, virtual scroll, and a complete Facebook-like UX.
+PulseConnect is a modern, high-performance, full-stack social media application engineered to replicate the seamless user experience and rich feature set of Facebook. Designed with scalability and responsiveness in mind, it handles real-time interactions, data-heavy feeds, and fluid navigation for a production-ready environment.
 
+Core Features
+
+    Interactive Social Feed: Create, edit, and delete text and media posts, engage with threaded comments, and interact using a Facebook-style multi-emoji reaction system.
+
+    Real-Time Communications: Instant messaging, live notifications, and instantaneous feed updates driven by bidirectional WebSocket connections.
+
+    Rich User Profiles: Customizable personal spaces featuring user bios, profile avatars, media galleries, and dynamic friend or follower relationship management.
+
+    Optimized Performance: Utilizes virtual scrolling algorithms to render thousands of posts in long-form feeds smoothly without layout jank or performance degradation.
+
+Technology Stack
+
+    Frontend: React and TypeScript, paired with responsive CSS layout frameworks for multi-device support.
+
+    API Architecture: GraphQL for precise, robust data fetching, mutations, and real-time subscription streaming.
+
+    Backend & Database: Node-based server architecture integrated with MongoDB for flexible schema design and rapid document retrieval.
+
+    Real-Time Layer: WebSockets for instantaneous messaging and push updates.
+
+Engineering Highlights
+
+    End-to-end type safety enforced via TypeScript across both client-side components and server operations.
+
+    Optimized data-loading strategies, including pagination and GraphQL query batching, to minimize network bandwidth consumption.
+
+    Modular, production-grade architecture built with clean separation of concerns, making it ready for horizontal scaling and containerized deployment.
 ---
 
 ## 🗂️ Project Structure
