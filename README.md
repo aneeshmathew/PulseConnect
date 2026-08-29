@@ -1,10 +1,10 @@
-# PulseConnect — Full-Stack Facebook-Style Social Network
+# PulseConnect — Full-Stack Socialbook-Style Social Network
 
-PulseConnect is a modern, high-performance, full-stack social media application engineered to replicate the seamless user experience and rich feature set of Facebook. Designed with scalability and responsiveness in mind, it handles real-time interactions, data-heavy feeds, and fluid navigation for a production-ready environment.
+PulseConnect is a modern, high-performance, full-stack social media application engineered to replicate the seamless user experience and rich feature set of SocialApp. Designed with scalability and responsiveness in mind, it handles real-time interactions, data-heavy feeds, and fluid navigation for a production-ready environment.
 
 Core Features
 
-    Interactive Social Feed: Create, edit, and delete text and media posts, engage with threaded comments, and interact using a Facebook-style multi-emoji reaction system.
+    Interactive Social Feed: Create, edit, and delete text and media posts, engage with threaded comments, and interact using a Socialbook-style multi-emoji reaction system.
 
     Real-Time Communications: Instant messaging, live notifications, and instantaneous feed updates driven by bidirectional WebSocket connections.
 
