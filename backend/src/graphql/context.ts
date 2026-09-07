@@ -1,6 +1,7 @@
 import { PubSub } from 'graphql-subscriptions';
 import { Request } from 'express';
 import jwt from 'jsonwebtoken';
+import { GraphQLError } from 'graphql';
 import { User, IUser } from '../models/User';
 import { createLoaders, Loaders } from '../lib/dataloader';
 
@@ -75,6 +76,16 @@ export const createWsContext = async (ctx: any): Promise<GraphQLContext> => {
 
 export function requireAuth(user: IUser | null): asserts user is IUser {
   if (!user) {
-    throw new Error('Not authenticated'); // will be caught and wrapped
+    // ✅ Fix: must be a GraphQLError with code UNAUTHENTICATED, not a plain
+    // Error. formatError (backend/src/index.ts) only whitelists a handful of
+    // codes through to the client in production and masks everything else as
+    // a generic "Internal server error" — a plain Error had no code, so it
+    // was always masked. That, in turn, meant the frontend's errorLink
+    // (frontend/src/lib/apollo.ts), which only auto-logs-out on
+    // UNAUTHENTICATED, never fired for an expired/invalid token: every
+    // authenticated query (feed, notifications, etc.) just silently failed
+    // while the persisted "logged in" UI state stuck around — the exact
+    // "stale state after reload, only fixed by manual logout" symptom.
+    throw new GraphQLError('Not authenticated', { extensions: { code: 'UNAUTHENTICATED' } });
   }
 }

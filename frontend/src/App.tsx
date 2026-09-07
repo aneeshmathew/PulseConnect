@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client';
 import { Toaster } from 'react-hot-toast';
-import { PlaySquare, Store, Calendar } from 'lucide-react';
+import { Store, Calendar } from 'lucide-react';
 import { client } from '@/lib/apollo';
 import { useAuthStore } from '@/store';
 import { HomePage } from '@/pages/Home';
@@ -13,6 +13,7 @@ import { FriendsPage } from '@/pages/Friends';
 import { PostDetailPage } from '@/pages/PostDetail';
 import { SavedPage } from '@/pages/Saved';
 import { SettingsPage } from '@/pages/Settings';
+import { WatchPage } from '@/pages/Watch';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -37,9 +38,7 @@ export default function App() {
           <Route path="/messages/:conversationId" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
           <Route path="/friends" element={<PrivateRoute><FriendsPage /></PrivateRoute>} />
           <Route path="/post/:id" element={<PrivateRoute><PostDetailPage /></PrivateRoute>} />
-          <Route path="/watch" element={<PrivateRoute>
-            <ComingSoonPage icon={PlaySquare} title="Watch" description="Video feed and reels are coming soon — check back later." />
-          </PrivateRoute>} />
+          <Route path="/watch" element={<PrivateRoute><WatchPage /></PrivateRoute>} />
           <Route path="/marketplace" element={<PrivateRoute>
             <ComingSoonPage icon={Store} title="Marketplace" description="Buying and selling with your community is coming soon." />
           </PrivateRoute>} />

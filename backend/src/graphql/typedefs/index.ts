@@ -171,6 +171,40 @@ export const typeDefs = gql`
     hasUnviewed: Boolean!
   }
 
+  # ─── Watch (video feed / reels) ─────────────────────────────────────────
+  type Video {
+    id: ID!
+    author: User!
+    url: String!
+    thumbnail: String
+    caption: String!
+    duration: Int
+    width: Int
+    height: Int
+    visibility: Visibility!
+    reactionSummary: [ReactionSummary!]
+    myReaction: ReactionType
+    reactionsCount: Int!
+    comments: [VideoComment!]!
+    commentsCount: Int!
+    sharesCount: Int!
+    viewCount: Int!
+    createdAt: DateTime!
+  }
+
+  type VideoComment {
+    id: ID!
+    author: User!
+    content: String!
+    createdAt: DateTime!
+  }
+
+  type VideoConnection {
+    videos: [Video!]!
+    hasMore: Boolean!
+    nextCursor: String
+  }
+
   type Message {
     id: ID!
     conversation: Conversation!
@@ -288,6 +322,11 @@ export const typeDefs = gql`
     stories: [StoryGroup!]!
     userStories(userId: ID!): [Story!]!
 
+    # Watch
+    watchFeed(cursor: String, limit: Int): VideoConnection!
+    video(id: ID!): Video
+    userVideos(userId: ID!, cursor: String, limit: Int): VideoConnection!
+
     # Notifications
     notifications(limit: Int, offset: Int): [Notification!]!
     unreadNotificationsCount: Int!
@@ -352,6 +391,14 @@ export const typeDefs = gql`
     deleteStory(id: ID!): Boolean!
     viewStory(storyId: ID!): Story!
     reactToStory(storyId: ID!, emoji: String!): Story!
+
+    # Watch
+    createVideo(input: CreateVideoInput!): Video!
+    deleteVideo(id: ID!): Boolean!
+    reactToVideo(videoId: ID!, type: ReactionType!): Video!
+    removeVideoReaction(videoId: ID!): Video!
+    commentOnVideo(videoId: ID!, content: String!): Video!
+    incrementVideoView(videoId: ID!): Boolean!
 
     # Notifications
     markNotificationRead(id: ID!): Notification!
@@ -460,6 +507,16 @@ export const typeDefs = gql`
     text: String
     backgroundColor: String
     expiresInHours: Int
+  }
+
+  input CreateVideoInput {
+    url: String!
+    thumbnail: String
+    caption: String
+    duration: Int
+    width: Int
+    height: Int
+    visibility: Visibility
   }
 
   input SendMessageInput {

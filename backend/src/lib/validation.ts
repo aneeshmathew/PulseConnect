@@ -39,6 +39,21 @@ export const CreatePostSchema = z.object({
   tags: z.array(z.string()).max(20).optional(),
 });
 
+export const CreateVideoSchema = z.object({
+  url: z.string().url(),
+  thumbnail: z.string().url().optional(),
+  caption: z.string().max(2200).optional(),
+  duration: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  visibility: z.enum(['PUBLIC', 'FRIENDS', 'PRIVATE']).optional().default('PUBLIC'),
+});
+
+export const VideoCommentSchema = z.object({
+  videoId: z.string().min(1),
+  content: z.string().min(1).max(2000),
+});
+
 export const CreateCommentSchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(8000),

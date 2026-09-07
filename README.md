@@ -322,11 +322,14 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Edit Cover Photo / Edit Profile Photo buttons had no `onClick` handlers — fixed (2026-08-24 (4))
 - [x] "Edit post" and "Edit profile" buttons had no handlers; Cloudinary uploads were 401ing on every request — all fixed (2026-08-24 (5))
 - [x] Settings page: unreadable selected-option text; toggle switches visually misaligned — fixed (2026-08-24 (6))
-- [ ] Three nav destinations remain: Watch, Marketplace, Events — bigger builds needing new data models (video feed, listings, RSVPs), scoping in progress.
+- [x] Stale login after reload (no feed/notifications) traced to two stacked bugs: `requireAuth` throwing a plain `Error` instead of a coded `GraphQLError`, and the auto-logout path only clearing half the persisted auth state — both fixed (2026-09-07 (1))
+- [x] Mobile nav: profile menu / Log Out pushed off-screen by a non-shrinking search box — fixed (2026-09-07 (1))
+- [x] Watch (video feed / reels) — first of the three placeholder nav destinations built out for real (2026-09-07 (2))
+- [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
 
 ### Open items
 
-- [ ] Build real Watch / Marketplace / Events pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for any of these.
+- [ ] Build real Marketplace / Events pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for either. Watch was completed in 2026-09-07 (2).
 - [ ] No automated test currently guards against a populated-list/ref field silently returning `null`, or against the Mongoose single-nested-subdocument default-object gotcha that caused entry 2026-08-22 (10). Worth a resolver-level integration test suite at some point — `GET_USER` with a seeded user that has friends, `feed`/`post` with a seeded post that has tags, `sendMessage` with a `recipientId` (no prior conversation), and a message with no `media` attached.
 - [ ] **Verify your Vercel project's Node.js runtime is set to 20.x or later.** Apollo Server 5 requires Node ≥20 — this is a project-level dashboard setting Claude cannot see or change remotely. If it's currently pinned to 18.x, the backend will fail to boot after this deploy. Check: Vercel dashboard → backend project → Settings → General → Node.js Version.
 - [ ] **Explore real WebSocket subscriptions in production** (currently polling on Vercel — see the "Real-Time" section above for why). Two directions worth evaluating when this becomes a priority: a separate always-on WS process (Railway/Render/Fly.io), or Vercel's own evolving realtime/Edge WebSocket support. Not urgent — polling is functionally invisible to users today — but flagged so it doesn't get re-investigated from scratch later.
@@ -335,6 +338,8 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-07 (2) | Sep 7 | Watch (video feed / reels) built out — new `Video` model/schema/resolvers, upload composer, swipeable feed | ✅ Fixed |
+| 2026-09-07 (1) | Sep 7 | Stale login after reload (`requireAuth` uncoded error + half-cleared auth state); mobile nav pushed Log Out off-screen | ✅ Fixed |
 | 2026-08-24 (6) | Aug 24 | Settings page unreadable text + misaligned toggles — traced to an incomplete Tailwind color palette | ✅ Fixed |
 | 2026-08-24 (5) | Aug 24 | "Edit post"/"Edit profile" had no handlers; Cloudinary uploads 401ing (bad signed param); Create Story modal cut off | ✅ Fixed |
 | 2026-08-24 (4) | Aug 24 | Edit Cover Photo / Edit Profile Photo buttons had no handlers | ✅ Fixed |
@@ -364,6 +369,47 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-07 (2) — Watch (video feed / reels) built out
+
+**Scope:** first of the three placeholder nav destinations (Watch / Marketplace / Events) to get a real implementation, per 2026-08-22 (1).
+
+**Backend:**
+1. `backend/src/models/Video.ts` (new) — author, url, thumbnail, caption, duration/width/height, visibility, embedded `reactions` (same enum/shape as `Post.reactions`), embedded flat `comments`, `shares`, `viewCount`.
+2. `backend/src/lib/validation.ts` — added `CreateVideoSchema`, `VideoCommentSchema`.
+3. `backend/src/graphql/typedefs/index.ts` — `Video` / `VideoComment` / `VideoConnection` types; `watchFeed`, `video`, `userVideos` queries; `createVideo`, `deleteVideo`, `reactToVideo`, `removeVideoReaction`, `commentOnVideo`, `incrementVideoView` mutations.
+4. `backend/src/graphql/resolvers/video.resolvers.ts` (new) — same cursor-pagination/`requireAuth`/`GraphQLError`-with-code conventions as `post.resolvers.ts`; comment authors resolved via the existing `userLoader` DataLoader regardless of which query returned the video.
+5. `backend/src/scripts/seed.ts` — 12 demo videos (public sample video files + picsum placeholder thumbnails) with reactions/comments across seeded users.
+
+**Scope decision — comments are embedded, not in the shared `Comment` collection:** Watch comments are flat (no threaded replies) and stored directly on the `Video` document, rather than reusing the `Comment` model that `Post` uses. Post's comments need threading and independent pagination at scale; a reel's comment list is short and shown in full below the video. This keeps the change fully additive — zero risk to the existing `Comment`/`Post` resolvers — at the cost of no reply-threading for video comments in this first version. Can be split into its own collection later if that's needed.
+
+**Frontend:**
+6. `frontend/src/lib/graphql.ts` — `VIDEO_FIELDS` fragment plus `GET_WATCH_FEED`, `GET_VIDEO`, `CREATE_VIDEO`, `DELETE_VIDEO`, `REACT_TO_VIDEO`, `REMOVE_VIDEO_REACTION`, `COMMENT_ON_VIDEO`, `INCREMENT_VIDEO_VIEW`.
+7. `frontend/src/components/Watch/VideoCard.tsx` (new) — vertical reel card: autoplay/pause driven by the parent's `IntersectionObserver`, mute toggle, like/comment/share action rail, bottom-sheet comments, owner-only delete. A view is counted once per mount after ~2s of continuous play, not on every scroll-past.
+8. `frontend/src/components/Watch/CreateVideoModal.tsx` (new) — upload composer reusing the existing `uploadMedia` Cloudinary helper (same pattern as `CreateStoryModal.tsx`), caption + visibility picker, prepends the new video into the `GET_WATCH_FEED` cache on success.
+9. `frontend/src/pages/Watch.tsx` (new) — replaces the `ComingSoonPage` placeholder: CSS scroll-snap vertical feed, infinite scroll via `fetchMore`.
+10. `frontend/src/App.tsx` — `/watch` now routes to `WatchPage` instead of `ComingSoonPage`.
+
+**Files touched:** `backend/src/models/Video.ts`, `backend/src/lib/validation.ts`, `backend/src/graphql/typedefs/index.ts`, `backend/src/graphql/resolvers/video.resolvers.ts`, `backend/src/graphql/resolvers/index.ts`, `backend/src/scripts/seed.ts`, `frontend/src/lib/graphql.ts`, `frontend/src/components/Watch/VideoCard.tsx`, `frontend/src/components/Watch/CreateVideoModal.tsx`, `frontend/src/pages/Watch.tsx`, `frontend/src/App.tsx`
+
+**Status:** ✅ Built, reviewed by hand for correctness (no network access in this environment to run `npm install`/typecheck — recommend a build/typecheck pass before shipping).
+
+### 2026-09-07 (1) — Stale login after reload, and Log Out cut off on mobile
+
+**Symptom (reported by the user):** Loading the app with an existing session showed the last-logged-in user, but with no feed and no activity loaded — a "stale state" that only manual Log Out → Log back in would fix. Separately, on mobile viewports the Log Out button (inside the profile dropdown) was inaccessible/cut off.
+
+**Root cause 1 — stale login:** `backend/src/graphql/context.ts`'s `requireAuth()` threw a plain `Error`, not a `GraphQLError` with a code. `formatError` (`backend/src/index.ts`) only lets a small allowlist of codes (`UNAUTHENTICATED`, `FORBIDDEN`, `BAD_USER_INPUT`, `NOT_FOUND`) through in production and masks everything else as a generic error — so an expired/invalid token's failure was always masked, and the frontend's `errorLink` (which only auto-logs-out on `UNAUTHENTICATED`) never fired. Compounding this, `errorLink` (`frontend/src/lib/apollo.ts`) only cleared the `token` localStorage key on logout, not the Zustand-persisted `auth-storage` key (`isAuthenticated`/`user`) — so even a correctly detected `UNAUTHENTICATED` would redirect to `/login`, immediately bounce back to `/` (the store still said "logged in"), and loop silently.
+
+**Root cause 2 — mobile Log Out cut off:** `frontend/src/components/Sidebar/Navbar.tsx`'s search box was a fixed, non-shrinking 208px element sandwiched between the logo and the message/notification/profile icon cluster — needing ~430px+ of total width. Any phone-width viewport overflowed, pushing the profile button (and its Log Out menu) off-screen.
+
+**Fix:**
+1. `backend/src/graphql/context.ts` — `requireAuth` now throws `new GraphQLError('Not authenticated', { extensions: { code: 'UNAUTHENTICATED' } })`.
+2. `frontend/src/lib/apollo.ts` — `errorLink`'s auto-logout now clears both `token` and `auth-storage` before redirecting, matching what the manual Log Out button already did correctly.
+3. `frontend/src/components/Sidebar/Navbar.tsx` — search collapses to an icon-triggered full-width overlay below the `sm` breakpoint, freeing the space the icon cluster needs to stay on-screen.
+
+**Files touched:** `backend/src/graphql/context.ts`, `frontend/src/lib/apollo.ts`, `frontend/src/components/Sidebar/Navbar.tsx`
+
+**Status:** ✅ Fixed. **Note:** no network access in this environment to run `npm install`/typecheck — reviewed by hand (JSX balance, hook order, no new dependencies).
 
 ### 2026-08-24 (6) — Settings page: unreadable text and misaligned toggles, both traced to one root cause
 

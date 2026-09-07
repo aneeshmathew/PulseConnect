@@ -48,7 +48,17 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
       if (extensions?.code === 'UNAUTHENTICATED') {
         // Only redirect once — avoid loops on the login page
         if (!window.location.pathname.startsWith('/login')) {
+          // ✅ Fix: removing only 'token' left the Zustand-persisted
+          // 'auth-storage' entry (isAuthenticated: true + the stale user
+          // object) in place. On the reload below, that store rehydrates as
+          // still-logged-in, PublicRoute immediately bounces /login back to
+          // "/", the now-tokenless queries fail UNAUTHENTICATED again, and
+          // it silently loops back and forth — never actually reaching the
+          // login form. Clearing both keys mirrors what the manual "Log Out"
+          // button does (useAuthStore's logout()), which is the only path
+          // that previously worked.
           localStorage.removeItem('token');
+          localStorage.removeItem('auth-storage');
           window.location.replace('/login');
         }
         return;

@@ -5,6 +5,7 @@ import { Post } from '../models/Post';
 import { Comment } from '../models/Comment';
 import { Story } from '../models/Story';
 import { Conversation, Message } from '../models/Message';
+import { Video } from '../models/Video';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 
@@ -209,6 +210,7 @@ async function seed() {
   await Promise.all([
     User.deleteMany({}), Post.deleteMany({}), Comment.deleteMany({}),
     Story.deleteMany({}), Conversation.deleteMany({}), Message.deleteMany({}),
+    Video.deleteMany({}),
   ]);
   console.log('🧹 Cleared all existing data');
 
@@ -341,6 +343,66 @@ async function seed() {
   );
   console.log(`📸 Created ${users.length} stories`);
 
+  // ── 5b. Watch videos ─────────────────────────────────────────────────────
+  // Standard freely-available sample video files (Google's public GCS demo
+  // bucket) — the same assets commonly used to seed/demo video players,
+  // parallel to how IMAGES above uses free Unsplash stock photos.
+  const VIDEOS = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+  ];
+  const VIDEO_CAPTIONS = [
+    'Quick clip from today 🎬', 'This made my whole week 😂', 'POV: it\'s finally the weekend',
+    'Can\'t stop watching this 🔥', 'Filmed this on a whim, kinda love it', 'Rainy day mood 🌧️',
+    'When the trail finally opens up 🏞️', 'Little behind-the-scenes moment', 'Testing out the new setup',
+    'This is exactly the energy I needed today ✨', 'Saved this one for later, worth the wait',
+    'Nothing beats a good road trip playlist 🚗',
+  ];
+
+  const videoDocs: any[] = [];
+  for (let i = 0; i < VIDEOS.length; i++) {
+    const author = users[i % users.length];
+    const reactors = pickSome(users.filter((u: any) => u._id.toString() !== author._id.toString()), 0, 6);
+    const commenters = pickSome(users, 0, 3);
+
+    const video = new Video({
+      author: author._id,
+      url: VIDEOS[i],
+      // Portrait placeholder thumbnail — Cloudinary-uploaded videos derive
+      // a real poster frame at upload time (see CreateVideoModal.tsx), but
+      // seed data has no Cloudinary asset behind it, so a stock photo
+      // stands in.
+      thumbnail: `https://picsum.photos/seed/watch${i}/400/700`,
+      caption: VIDEO_CAPTIONS[i % VIDEO_CAPTIONS.length],
+      visibility: 'public',
+      reactions: reactors.map((r: any) => ({
+        user: r._id,
+        type: pick(REACTION_TYPES as unknown as string[]),
+        createdAt: new Date(),
+      })),
+      comments: commenters.map((c: any) => ({
+        author: c._id,
+        content: pick(COMMENT_BANK),
+        createdAt: new Date(),
+      })),
+      viewCount: Math.floor(Math.random() * 5000) + 100,
+      createdAt: daysAgo(Math.floor(i * 20 / VIDEOS.length), 8),
+    });
+    await video.save();
+    videoDocs.push(video);
+  }
+  console.log(`🎬 Created ${videoDocs.length} videos`);
+
   // ── 6. Sample conversation ────────────────────────────────────────────────
   const conv = await Conversation.create({
     participants: [demo._id, alice._id],
@@ -377,6 +439,7 @@ async function seed() {
   console.log(`  📝 Posts:         ${postDocs.length}  (enough to test virtual scroll)`);
   console.log(`  💬 Comments:      ${commentCount}`);
   console.log(`  📸 Stories:       ${users.length}`);
+  console.log(`  🎬 Videos:        ${videoDocs.length}`);
   console.log(`  🤝 Friendships:   ${friendPairs.length}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  📧 Email:         demo@example.com');

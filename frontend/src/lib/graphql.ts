@@ -297,6 +297,89 @@ export const CREATE_STORY = gql`
   }
 `;
 
+// ── Watch (video feed / reels) ──────────────────────────────────────────────
+
+export const VIDEO_FIELDS = gql`
+  fragment VideoFields on Video {
+    id
+    url
+    thumbnail
+    caption
+    duration
+    width
+    height
+    visibility
+    reactionSummary { type count }
+    myReaction
+    reactionsCount
+    commentsCount
+    comments { id content createdAt author { ...UserFields } }
+    sharesCount
+    viewCount
+    createdAt
+    author { ...UserFields }
+  }
+  ${USER_FIELDS}
+`;
+
+export const GET_WATCH_FEED = gql`
+  query GetWatchFeed($cursor: String, $limit: Int) {
+    watchFeed(cursor: $cursor, limit: $limit) {
+      videos { ...VideoFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const GET_VIDEO = gql`
+  query GetVideo($id: ID!) {
+    video(id: $id) { ...VideoFields }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const CREATE_VIDEO = gql`
+  mutation CreateVideo($input: CreateVideoInput!) {
+    createVideo(input: $input) { ...VideoFields }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const DELETE_VIDEO = gql`
+  mutation DeleteVideo($id: ID!) {
+    deleteVideo(id: $id)
+  }
+`;
+
+export const REACT_TO_VIDEO = gql`
+  mutation ReactToVideo($videoId: ID!, $type: ReactionType!) {
+    reactToVideo(videoId: $videoId, type: $type) { ...VideoFields }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const REMOVE_VIDEO_REACTION = gql`
+  mutation RemoveVideoReaction($videoId: ID!) {
+    removeVideoReaction(videoId: $videoId) { ...VideoFields }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const COMMENT_ON_VIDEO = gql`
+  mutation CommentOnVideo($videoId: ID!, $content: String!) {
+    commentOnVideo(videoId: $videoId, content: $content) { ...VideoFields }
+  }
+  ${VIDEO_FIELDS}
+`;
+
+export const INCREMENT_VIDEO_VIEW = gql`
+  mutation IncrementVideoView($videoId: ID!) {
+    incrementVideoView(videoId: $videoId)
+  }
+`;
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const LOGIN = gql`

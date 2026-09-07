@@ -40,6 +40,14 @@ export function Navbar() {
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  // ✅ Fix (mobile layout): the inline search box is a fixed 208px
+  // (w-52) and flex-shrink-0, so on phone-width viewports the navbar
+  // (logo + search + message/notif/profile icons) needed ~430px+ to fit
+  // without overlap — the profile button (and its Log Out menu) was the
+  // rightmost item, so it got pushed off-screen. Below `sm` we now show a
+  // small search icon instead that opens the same search UI as a
+  // full-width overlay, freeing ~216px so the icon cluster always fits.
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -173,6 +181,37 @@ export function Navbar() {
     setUnreadCount(0);
   }, [markAllRead, setUnreadCount]);
 
+  // Shared between the desktop inline search box and the mobile search
+  // overlay so both stay in sync instead of duplicating result-rendering.
+  const renderSearchResults = (onSelect?: () => void) => (
+    <>
+      {searchLoading && (
+        <div className="px-4 py-3 text-sm text-gray-400 text-center">Searching…</div>
+      )}
+      {!searchLoading && (searchData?.searchUsers ?? []).length === 0 && (
+        <div className="px-4 py-4 text-sm text-gray-500 text-center">No results for "{searchText}"</div>
+      )}
+      {(searchData?.searchUsers ?? []).map((u: any) => (
+        <Link
+          key={u.id}
+          to={`/profile/${u.username}`}
+          onClick={() => { setShowSearch(false); setSearchText(''); onSelect?.(); }}
+          role="option"
+          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 transition-colors"
+        >
+          <Avatar src={u.avatar} name={u.fullName} size="sm" isOnline={u.isOnline} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.fullName}</p>
+            <p className="text-xs text-gray-500">@{u.username}</p>
+          </div>
+          {u.isFriend && (
+            <span className="ml-auto text-xs text-brand-500 font-medium flex-shrink-0">Friend</span>
+          )}
+        </Link>
+      ))}
+    </>
+  );
+
   const handleLogout = useCallback(() => {
     logout();
     navigate('/login', { replace: true });
@@ -190,8 +229,8 @@ export function Navbar() {
         </div>
       </Link>
 
-      {/* ── Search ───────────────────────────────── */}
-      <div ref={searchRef} className="relative flex-shrink-0">
+      {/* ── Search (tablet/desktop: inline box, ≥sm) ── */}
+      <div ref={searchRef} className="relative flex-shrink-0 hidden sm:block">
         <div className="flex items-center gap-2 bg-gray-100 dark:bg-surface-dark-3 rounded-full px-3 py-2 w-52">
           <Search size={15} className="text-gray-400 flex-shrink-0" aria-hidden />
           <input
@@ -220,30 +259,54 @@ export function Navbar() {
               aria-label="Search results"
               className="absolute top-full mt-2 left-0 w-76 bg-white dark:bg-surface-dark-2 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
             >
-              {searchLoading && (
-                <div className="px-4 py-3 text-sm text-gray-400 text-center">Searching…</div>
-              )}
-              {!searchLoading && (searchData?.searchUsers ?? []).length === 0 && (
-                <div className="px-4 py-4 text-sm text-gray-500 text-center">No results for "{searchText}"</div>
-              )}
-              {(searchData?.searchUsers ?? []).map((u: any) => (
-                <Link
-                  key={u.id}
-                  to={`/profile/${u.username}`}
-                  onClick={() => { setShowSearch(false); setSearchText(''); }}
-                  role="option"
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-dark-3 transition-colors"
+              {renderSearchResults()}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Search (mobile: icon toggles full-width overlay, <sm) ── */}
+      <div className="relative flex-shrink-0 sm:hidden">
+        <button
+          onClick={() => setShowMobileSearch((v) => !v)}
+          aria-label="Search"
+          aria-expanded={showMobileSearch}
+          className="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          <Search size={18} className="text-gray-700 dark:text-gray-200" />
+        </button>
+
+        <AnimatePresence>
+          {showMobileSearch && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.12 }}
+              className="fixed top-14 left-0 right-0 z-50 bg-white dark:bg-surface-dark-2 border-b border-gray-200 dark:border-gray-700 shadow-lg"
+            >
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-surface-dark-3 rounded-full px-3 py-2 m-3">
+                <Search size={15} className="text-gray-400 flex-shrink-0" aria-hidden />
+                <input
+                  autoFocus
+                  value={searchText}
+                  onChange={(e) => { setSearchText(e.target.value); setShowSearch(true); }}
+                  placeholder="Search PluseConnect"
+                  aria-label="Search"
+                  className="bg-transparent text-sm outline-none text-gray-900 dark:text-white placeholder:text-gray-400 w-full"
+                />
+                <button
+                  onClick={() => { setShowMobileSearch(false); setSearchText(''); setShowSearch(false); }}
+                  aria-label="Close search"
                 >
-                  <Avatar src={u.avatar} name={u.fullName} size="sm" isOnline={u.isOnline} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.fullName}</p>
-                    <p className="text-xs text-gray-500">@{u.username}</p>
-                  </div>
-                  {u.isFriend && (
-                    <span className="ml-auto text-xs text-brand-500 font-medium flex-shrink-0">Friend</span>
-                  )}
-                </Link>
-              ))}
+                  <X size={15} className="text-gray-400" />
+                </button>
+              </div>
+              {searchText.trim().length >= 2 && (
+                <div role="listbox" aria-label="Search results" className="max-h-[70vh] overflow-y-auto border-t border-gray-100 dark:border-gray-700">
+                  {renderSearchResults(() => setShowMobileSearch(false))}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
