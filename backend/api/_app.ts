@@ -48,28 +48,40 @@ async function buildApp(): Promise<Express> {
       ...(!isDev ? [ApolloServerPluginLandingPageDisabled()] : []),
     ],
     formatError: (formattedError, error) => {
-      // Always log the FULL original error server-side (message + stack),
-      // regardless of environment. Previously this only logged in dev —
-      // meaning in production, an unexpected resolver exception was masked
-      // to "Internal server error" for the client AND never logged
-      // anywhere at all, making it look like the request just silently
-      // misbehaved with zero trace to debug from. This is why a real
-      // backend exception could go unnoticed through several rounds of
-      // testing: nothing in Vercel's logs ever pointed at it.
+      // Always log server-side, regardless of environment. Previously this
+      // only logged in dev — meaning in production, an unexpected resolver
+      // exception was masked to "Internal server error" for the client AND
+      // never logged anywhere at all, making it look like the request just
+      // silently misbehaved with zero trace to debug from. This is why a
+      // real backend exception could go unnoticed through several rounds
+      // of testing: nothing in Vercel's logs ever pointed at it.
+      //
+      // ✅ Refinement: that fix logged EVERY error identically, full stack
+      // trace included — which meant an expected, everyday client error
+      // (someone's token expired, so `requireAuth` correctly rejects them)
+      // dumped the exact same alarming wall of text as a genuine unhandled
+      // exception. There's nothing to fix when a logged-out user's request
+      // gets told "not authenticated" — that's the feature working — so it
+      // only needs a one-line note, not a stack trace. Anything outside
+      // that expected-client-error set still gets the full original
+      // message + stack, unchanged from before.
+      const code = formattedError.extensions?.code as string | undefined;
+      const expectedClientErrors = ['UNAUTHENTICATED', 'FORBIDDEN', 'BAD_USER_INPUT', 'NOT_FOUND'];
       const original = (error as any)?.originalError ?? error;
-      console.error('[GraphQL Error]', {
-        message: original?.message ?? formattedError.message,
-        path: formattedError.path,
-        code: formattedError.extensions?.code,
-        stack: original?.stack,
-      });
 
-      if (!isDev) {
-        const code = formattedError.extensions?.code;
-        const safeErrors = ['UNAUTHENTICATED', 'FORBIDDEN', 'BAD_USER_INPUT', 'NOT_FOUND'];
-        if (!safeErrors.includes(code as string)) {
-          return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
-        }
+      if (expectedClientErrors.includes(code as string)) {
+        console.log(`[GraphQL] ${code} on ${formattedError.path?.join('.')}: ${formattedError.message}`);
+      } else {
+        console.error('[GraphQL Error]', {
+          message: original?.message ?? formattedError.message,
+          path: formattedError.path,
+          code,
+          stack: original?.stack,
+        });
+      }
+
+      if (!isDev && !expectedClientErrors.includes(code as string)) {
+        return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
       }
       return formattedError;
     },

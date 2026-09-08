@@ -73,24 +73,34 @@ async function bootstrap() {
       },
     ],
     formatError: (formattedError, error) => {
-      // Always log the FULL original error server-side (message + stack),
-      // regardless of environment — see the matching comment in
-      // api/_app.ts for why this matters (previously silent in production).
+      // Always log server-side, regardless of environment — see the
+      // matching comment in api/_app.ts for why this matters (previously
+      // silent in production).
+      //
+      // ✅ Refinement: this used to log every error identically with a full
+      // stack trace — including an expected, everyday client error (an
+      // expired/invalid token correctly getting rejected by requireAuth).
+      // That's the feature working, not a bug, so it only needs a one-line
+      // note; the full original message + stack is reserved for anything
+      // outside that expected-client-error set.
+      const code = formattedError.extensions?.code as string | undefined;
+      const expectedClientErrors = ['UNAUTHENTICATED', 'FORBIDDEN', 'BAD_USER_INPUT', 'NOT_FOUND'];
       const original = (error as any)?.originalError ?? error;
-      console.error('[GraphQL Error]', {
-        message: original?.message ?? formattedError.message,
-        path: formattedError.path,
-        code: formattedError.extensions?.code,
-        stack: original?.stack,
-      });
+
+      if (expectedClientErrors.includes(code as string)) {
+        console.log(`[GraphQL] ${code} on ${formattedError.path?.join('.')}: ${formattedError.message}`);
+      } else {
+        console.error('[GraphQL Error]', {
+          message: original?.message ?? formattedError.message,
+          path: formattedError.path,
+          code,
+          stack: original?.stack,
+        });
+      }
 
       // Don't leak internal error details in production
-      if (!isDev) {
-        const code = formattedError.extensions?.code;
-        const safeErrors = ['UNAUTHENTICATED', 'FORBIDDEN', 'BAD_USER_INPUT', 'NOT_FOUND'];
-        if (!safeErrors.includes(code as string)) {
-          return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
-        }
+      if (!isDev && !expectedClientErrors.includes(code as string)) {
+        return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
       }
       return formattedError;
     },

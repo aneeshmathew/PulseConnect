@@ -70,6 +70,27 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   }
   if (networkError) {
     console.error(`[Network error]: ${networkError}`);
+    // ✅ Added per request: if the server can't be reached at all — not a
+    // GraphQL-level error, an actual failed connection (backend process
+    // down, dev server not started, or a 502/503/504 from a proxy sitting
+    // in front of a crashed backend) — end the session and send the
+    // person to the login screen instead of leaving them staring at a
+    // stale, silently-broken UI with no explanation.
+    //
+    // Trade-off worth knowing: this reacts to the very first failed
+    // request, including a single transient blip (a dropped wifi packet,
+    // laptop sleep/wake) — there's no retry-a-few-times-first grace period.
+    // A real backend outage and a one-off network hiccup produce identical
+    // behavior here. If that turns out to be too aggressive in practice,
+    // the fix is adding a short retry/backoff before treating it as fatal,
+    // not reverting this.
+    const statusCode = (networkError as any)?.statusCode;
+    const isConnectionFailure = !statusCode || [502, 503, 504].includes(statusCode);
+    if (isConnectionFailure && !window.location.pathname.startsWith('/login')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('auth-storage');
+      window.location.replace('/login?reason=offline');
+    }
   }
 });
 

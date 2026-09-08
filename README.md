@@ -332,6 +332,9 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Watch: one MDN sample URL (`bumblebee.mp4`) 404'd — guessed filename was wrong, replaced with a confirmed-working one; also removed autoplay entirely per user request — videos now only play on tap (2026-09-07 (7))
 - [x] Watch: no gap between stacked reels in the scroll-snap feed — cards touched edge-to-edge (2026-09-07 (8))
 - [x] Watch: liking a video threw "Something went wrong" — `VideoComment.id` came back null because comments were built by spreading a live Mongoose subdocument (2026-09-07 (9))
+- [x] Expected auth-rejection errors (expired token) logged server-side with the same alarming full stack trace as genuine unexpected errors — tiered to a one-line note for expected client errors (2026-09-07 (10))
+- [x] App had no response to the backend being completely unreachable — now force-logs-out and redirects to `/login` with an explanatory toast (2026-09-07 (10))
+- [x] Production build warned about 500kB+ chunks — every page was a static import bundled into one chunk; converted routes to `React.lazy()` + added vendor `manualChunks` (2026-09-07 (10))
 - [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
 
 ### Open items
@@ -345,6 +348,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-07 (10) | Sep 7 | Noisy expected-auth-error logging; no handling for an unreachable backend; 500kB+ build chunk warning | ✅ Fixed |
 | 2026-09-07 (9) | Sep 7 | Watch: liking a video threw "Something went wrong" — `VideoComment.id` resolved to null | ✅ Fixed |
 | 2026-09-07 (8) | Sep 7 | Watch: no visible gap between stacked reels — cards touched edge-to-edge | ✅ Fixed |
 | 2026-09-07 (7) | Sep 7 | One MDN seed URL 404'd (bad guess); autoplay removed entirely — Watch videos now play on tap only | ✅ Fixed |
@@ -383,6 +387,18 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-07 (10) — Noisy expected-error logging, unreachable-server handling, build chunk size
+
+**1. Expected auth rejections logged as alarming full stack traces.** Reported by the user pasting backend console output showing `UNAUTHENTICATED` errors for `conversations`/`notifications` with a full stack trace, plus `🔌 WS connected` / `🔌 WS disconnected` lines — this looked like a new bug but was actually the 2026-09-07 (1) fix working exactly as designed: a stale/invalid session correctly getting rejected. The alarming presentation was `formatError`'s own doing — it logs every server error identically, full stack trace included, whether it's a genuinely unexpected exception or a completely routine "this token is expired" rejection. **Fix (`backend/src/index.ts`, `backend/api/_app.ts`):** expected client-error codes (`UNAUTHENTICATED`, `FORBIDDEN`, `BAD_USER_INPUT`, `NOT_FOUND`) now log a single compact line (`[GraphQL] CODE on path: message`); anything else still gets the full original message + stack, unchanged from before.
+
+**2. No handling for a fully unreachable server.** Requested by the user: if the backend can't be reached at all (process not running, or a 502/503/504 from a proxy in front of a crashed backend), the app previously just sat there silently broken with no explanation. **Fix (`frontend/src/lib/apollo.ts`):** `errorLink`'s `networkError` branch now distinguishes a genuine connection failure (no `statusCode` present, or one of 502/503/504) from other network errors, and on that specific case clears the session (same double-clear as the UNAUTHENTICATED path) and redirects to `/login?reason=offline`. `frontend/src/pages/Auth.tsx`'s `LoginPage` reads that param and shows a toast ("Lost connection to the server...") so landing here doesn't look like an ordinary sign-in visit. **Trade-off flagged in code comments:** this reacts to the very first failed request — a single transient network blip and a real outage look identical here, there's no retry-a-few-times grace period. If that turns out to be too aggressive in practice, add a short retry/backoff before treating it as fatal rather than reverting this.
+
+**3. Production build chunk-size warning.** `frontend/src/App.tsx` statically imported every page at the top of the file, so the whole app (Messages, Watch, Settings, Profile, everything) bundled into one chunk regardless of which page someone actually opened — this is what Vite's "chunks larger than 500 kB after minification" warning was flagging. **Fix:** converted every route to `React.lazy()` (with `.then(m => ({ default: m.XPage }))` adapters, since every page file here uses named exports, not `export default`) wrapped in a single `<Suspense>` with a minimal spinner fallback — each page now ships as its own chunk, fetched only when its route is visited. Complemented with `manualChunks` in `frontend/vite.config.ts` to group third-party dependencies (`@apollo/client`+`graphql`, `framer-motion`, `lucide-react`, `react`+`react-router-dom`) into their own vendor chunks, since those change far less often than app code and this way a deploy that only touches app code doesn't force returning visitors to redownload vendor code that's still cached.
+
+**Files touched:** `backend/src/index.ts`, `backend/api/_app.ts`, `frontend/src/lib/apollo.ts`, `frontend/src/pages/Auth.tsx`, `frontend/src/App.tsx`, `frontend/vite.config.ts`
+
+**Status:** ✅ Fixed. **Note:** no network access in this environment to run `npm install`/typecheck/build — reviewed by hand; worth an actual `npm run build` to confirm the chunk-size warning clears and check final chunk sizes.
 
 ### 2026-09-07 (9) — Watch: liking a video threw "Something went wrong"
 
