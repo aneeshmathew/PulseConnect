@@ -335,6 +335,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Expected auth-rejection errors (expired token) logged server-side with the same alarming full stack trace as genuine unexpected errors — tiered to a one-line note for expected client errors (2026-09-07 (10))
 - [x] App had no response to the backend being completely unreachable — now force-logs-out and redirects to `/login` with an explanatory toast (2026-09-07 (10))
 - [x] Production build warned about 500kB+ chunks — every page was a static import bundled into one chunk; converted routes to `React.lazy()` + added vendor `manualChunks` (2026-09-07 (10))
+- [x] Post comments: couldn't post, posted comments never appeared, no previous comments shown, emoji button did nothing — `CommentSection` depended on a `post.comments` field the feed/profile/saved queries never actually fetched (2026-09-07 (11))
 - [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
 
 ### Open items
@@ -348,6 +349,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-07 (11) | Sep 7 | Comments: couldn't post, none showed, emoji did nothing — CommentSection relied on a field feed queries never fetch | ✅ Fixed |
 | 2026-09-07 (10) | Sep 7 | Noisy expected-auth-error logging; no handling for an unreachable backend; 500kB+ build chunk warning | ✅ Fixed |
 | 2026-09-07 (9) | Sep 7 | Watch: liking a video threw "Something went wrong" — `VideoComment.id` resolved to null | ✅ Fixed |
 | 2026-09-07 (8) | Sep 7 | Watch: no visible gap between stacked reels — cards touched edge-to-edge | ✅ Fixed |
@@ -387,6 +389,24 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-07 (11) — Comments: couldn't post, none appeared, emoji button dead
+
+**Symptom (reported by the user, with console output):** posting a comment on a post did nothing visible, previously-existing comments never showed at all, and the emoji button next to the composer had no effect. Console showed a repeated Apollo dev-error linking to `go.apollo.dev/c/err` with `args: ["GetPost"]`.
+
+**Decoded the Apollo error** (Apollo Client 3.14.1's error code 43): `Unknown query named "GetPost" requested in refetchQueries options.include array`. That's the direct symptom of the real bug below, not the root cause itself.
+
+**Root cause:** `CommentSection.tsx` never fetched comments itself — it only rendered whatever `initialComments` prop it was handed. Its one caller, `PostCard.tsx`, passed `post.comments`. But the shared `PostFields` fragment (used by `GetFeed`, `GetUserPosts`, `GetSavedPosts` — everywhere a post is fetched except the standalone post-detail page) only ever selects `commentsCount`, never the actual comment list — fetching full comment threads for every post in a paginated feed just to show a count would be wasteful, so it was never added there. That made `post.comments` silently `undefined` → `initialComments = []` on every page except the one using `GetPost` directly (`PostDetailPage`) — which is why "no previous comments" showed up basically everywhere the app is normally used. On top of that, posting a comment used `refetchQueries: ['GetPost']` — refetching by operation *name* only works if a query with that exact name is currently active, which it never was outside the post-detail page, hence the "Unknown query named GetPost" error and the newly-created comment having nothing to refresh into.
+
+**Fix:**
+1. `frontend/src/lib/graphql.ts` — added `GET_POST_COMMENTS`, a dedicated query (`comments(postId, limit)`, including one level of `replies`) that `CommentSection` now owns and fetches itself, on mount — which is already gated correctly, since the component is only mounted once someone expands a post's comments (`PostCard.tsx`'s `showComments` toggle). Removed the now-redundant `comments`/`replies` selection from `GET_POST` (nothing read it once `CommentSection` fetches its own copy uniformly everywhere).
+2. `frontend/src/components/Post/CommentSection.tsx` — replaced the `initialComments` prop entirely with `useQuery(GET_POST_COMMENTS, ...)`; both the top-level comment mutation and the per-comment reply mutation now use `refetchQueries: [{ query: GET_POST_COMMENTS, variables: { postId, limit: 10 } }]` (targeting the query *document*, scoped to the exact post) instead of the by-name string that only ever matched on one specific page.
+3. **Bonus fix, same root cause:** `comment.replies` was never queried at all (`CommentFields` only ever selected `repliesCount`), so clicking "N replies" always showed nothing regardless of the above. `GET_POST_COMMENTS` now includes `replies(limit: 5) { ...CommentFields }` per comment.
+4. **Emoji button:** was a decorative `<button>` with no handler. Added a small emoji popover (a curated 12-emoji grid — no picker library was installed, and pulling one in just for a comment box seemed heavier than warranted) that inserts the chosen emoji into the comment text.
+
+**Files touched:** `frontend/src/lib/graphql.ts`, `frontend/src/components/Post/CommentSection.tsx`, `frontend/src/components/Post/PostCard.tsx`
+
+**Status:** ✅ Fixed.
 
 ### 2026-09-07 (10) — Noisy expected-error logging, unreachable-server handling, build chunk size
 

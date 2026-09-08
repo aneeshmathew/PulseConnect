@@ -130,12 +130,30 @@ export const GET_POST = gql`
   query GetPost($id: ID!) {
     post(id: $id) {
       ...PostFields
-      comments(limit: 10) { ...CommentFields }
       sharedFrom { ...PostFields }
       tags { ...UserFields }
     }
   }
   ${POST_FIELDS}
+`;
+
+// PostFields (used by GetFeed/GetUserPosts/GetSavedPosts — everywhere a post
+// is fetched except this specific page) only carries `commentsCount`, not
+// the actual comment list — fetching full comment threads for every post in
+// a paginated feed just to show a count would be wasteful. CommentSection
+// fetches this itself, on demand, since it's only mounted in the first
+// place once someone actually expands a given post's comments (see
+// PostCard.tsx's `showComments` toggle) — this was previously missing
+// entirely, which is why opening comments on any post reached from the main
+// feed (as opposed to a standalone post-detail view) showed nothing, and a
+// freshly-posted comment never appeared anywhere.
+export const GET_POST_COMMENTS = gql`
+  query GetPostComments($postId: ID!, $limit: Int) {
+    comments(postId: $postId, limit: $limit) {
+      ...CommentFields
+      replies(limit: 5) { ...CommentFields }
+    }
+  }
   ${COMMENT_FIELDS}
 `;
 

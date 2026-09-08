@@ -486,7 +486,7 @@ const PostCard = memo(function PostCard({ post, initiallyExpanded = false }: Pos
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <CommentSection postId={post.id} initialComments={post.comments ?? []} />
+            <CommentSection postId={post.id} />
           </motion.div>
         )}
       </AnimatePresence>
