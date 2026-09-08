@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
@@ -77,24 +77,8 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const [login, { loading }] = useMutation(LOGIN);
-
-  // Surfaces the forced-logout-on-unreachable-server path in apollo.ts —
-  // without this, landing here after that redirect looks identical to a
-  // normal "please sign in" visit, with no hint that a session just got
-  // torn down because the backend couldn't be reached.
-  useEffect(() => {
-    if (searchParams.get('reason') === 'offline') {
-      toast.error("Lost connection to the server. Please log in again once it's back.");
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('reason');
-        return next;
-      }, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

@@ -336,6 +336,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] App had no response to the backend being completely unreachable — now force-logs-out and redirects to `/login` with an explanatory toast (2026-09-07 (10))
 - [x] Production build warned about 500kB+ chunks — every page was a static import bundled into one chunk; converted routes to `React.lazy()` + added vendor `manualChunks` (2026-09-07 (10))
 - [x] Post comments: couldn't post, posted comments never appeared, no previous comments shown, emoji button did nothing — `CommentSection` depended on a `post.comments` field the feed/profile/saved queries never actually fetched (2026-09-07 (11))
+- [x] Offline-logout toast removed per request — server-unreachable now logs out silently, no message shown; deleted stray unrelated scratch file `sol1.js` from the project root (2026-09-07 (12))
 - [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
 
 ### Open items
@@ -349,6 +350,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-07 (12) | Sep 7 | Removed offline-logout toast per request (now silent); deleted stray `sol1.js` scratch file | ✅ Fixed |
 | 2026-09-07 (11) | Sep 7 | Comments: couldn't post, none showed, emoji did nothing — CommentSection relied on a field feed queries never fetch | ✅ Fixed |
 | 2026-09-07 (10) | Sep 7 | Noisy expected-auth-error logging; no handling for an unreachable backend; 500kB+ build chunk warning | ✅ Fixed |
 | 2026-09-07 (9) | Sep 7 | Watch: liking a video threw "Something went wrong" — `VideoComment.id` resolved to null | ✅ Fixed |
@@ -389,6 +391,16 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-07 (12) — Silent logout on server-unreachable; removed stray scratch file
+
+**1. Removed the offline toast (per request):** the "Lost connection to the server. Please log in again once it's back." message added in 2026-09-07 (10) was explicitly asked to be dropped — the forced logout on an unreachable server stays, just silently now. `frontend/src/pages/Auth.tsx` no longer reads a `?reason=offline` param or shows a toast for it (removed the effect, and the now-unused `useEffect`/`useSearchParams` imports); `frontend/src/lib/apollo.ts`'s network-error handler redirects to a plain `/login` instead of `/login?reason=offline`.
+
+**2. Deleted `sol1.js`** — a standalone React coding-exercise scratch file (a list-selection exercise, unrelated to PulseConnect) sitting in the project root with no imports/exports connecting it to the app and no references anywhere else in the codebase. Confirmed unused before deleting.
+
+**Files touched:** `frontend/src/pages/Auth.tsx`, `frontend/src/lib/apollo.ts` · **Deleted:** `sol1.js`
+
+**Status:** ✅ Done.
 
 ### 2026-09-07 (11) — Comments: couldn't post, none appeared, emoji button dead
 
