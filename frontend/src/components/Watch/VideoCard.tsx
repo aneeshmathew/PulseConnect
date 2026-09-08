@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMutation } from '@apollo/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Volume2, VolumeX, MoreHorizontal, Send, Trash2, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Volume2, VolumeX, MoreHorizontal, Send, Trash2, X, Play, Film } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -21,8 +21,13 @@ export function VideoCard({ video, isActive, onDeleted }: VideoCardProps) {
   const { user: currentUser } = useAuthStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewedRef = useRef(false);
+  const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [muted, setMuted] = useState(true);
+  // No autoplay (see effect below) — nothing plays until the person taps
+  // the play button, so the video genuinely starts paused.
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -36,27 +41,22 @@ export function VideoCard({ video, isActive, onDeleted }: VideoCardProps) {
   const [incrementView] = useMutation(INCREMENT_VIDEO_VIEW);
   const [deleteVideo, { loading: deleting }] = useMutation(DELETE_VIDEO);
 
-  // Play/pause driven by the parent's IntersectionObserver (isActive), not
-  // by scroll math here — keeps this component dumb and reusable. Count a
-  // genuine "view" once per mount, after a couple of seconds of continuous
-  // play, rather than on every scroll-past (matches how the resolver's
-  // incrementVideoView is documented to be called: once per real view, not
-  // once per query).
+  // Scrolling a card out of view still pauses it (so audio/playback doesn't
+  // keep running off-screen), but scrolling one INTO view no longer starts
+  // it — playback is opt-in, triggered only by the person tapping play
+  // (the tap-to-play button below, or the video itself).
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    if (isActive) {
-      el.play().catch(() => {});
-      const t = setTimeout(() => {
-        if (!viewedRef.current) {
-          viewedRef.current = true;
-          incrementView({ variables: { videoId: video.id } }).catch(() => {});
-        }
-      }, 2000);
-      return () => clearTimeout(t);
-    }
-    el.pause();
-  }, [isActive, incrementView, video.id]);
+    if (!isActive) videoRef.current?.pause();
+  }, [isActive]);
+
+  // Count a genuine "view" once per mount, after ~2 uninterrupted seconds
+  // of actual playback — driven by the <video>'s own onPlay/onPause below,
+  // not by scroll timing, since a video no longer starts playing on its
+  // own. Cleared on pause/unmount so scrubbing in and out doesn't rack up
+  // a view for a video that was never really watched.
+  useEffect(() => {
+    return () => { if (viewTimerRef.current) clearTimeout(viewTimerRef.current); };
+  }, []);
 
   const handleLike = useCallback(async () => {
     try {
@@ -73,9 +73,28 @@ export function VideoCard({ video, isActive, onDeleted }: VideoCardProps) {
 
   const handleTogglePlay = useCallback(() => {
     const el = videoRef.current;
+    if (!el || hasError) return;
+    // Don't guess the resulting state here — el.play()/el.pause() are async
+    // and can fail; onPlay/onPause on the <video> below are the single
+    // source of truth for isPlaying, so the button overlay never gets out
+    // of sync with what's actually happening.
+    if (el.paused) {
+      el.play().catch((err) => {
+        if (err?.name !== 'AbortError') console.warn('Video playback failed:', err);
+      });
+    } else {
+      el.pause();
+    }
+  }, [hasError]);
+
+  const handleRetry = useCallback(() => {
+    const el = videoRef.current;
     if (!el) return;
-    if (el.paused) el.play().catch(() => {});
-    else el.pause();
+    setHasError(false);
+    el.load();
+    el.play().catch((err) => {
+      if (err?.name !== 'AbortError') console.warn('Video playback failed:', err);
+    });
   }, []);
 
   const handleComment = useCallback(
@@ -126,13 +145,87 @@ export function VideoCard({ video, isActive, onDeleted }: VideoCardProps) {
         preload="metadata"
         onDoubleClick={handleDoubleTap}
         onClick={handleTogglePlay}
+        onPlay={() => {
+          setIsPlaying(true);
+          if (!viewedRef.current && !viewTimerRef.current) {
+            viewTimerRef.current = setTimeout(() => {
+              viewTimerRef.current = null;
+              if (!viewedRef.current) {
+                viewedRef.current = true;
+                incrementView({ variables: { videoId: video.id } }).catch(() => {});
+              }
+            }, 2000);
+          }
+        }}
+        onPause={() => {
+          setIsPlaying(false);
+          if (viewTimerRef.current) {
+            clearTimeout(viewTimerRef.current);
+            viewTimerRef.current = null;
+          }
+        }}
+        onError={(e) => {
+          // A real load failure (dead URL, blocked domain, unsupported
+          // codec, network policy) — NOT the same as autoplay being
+          // blocked. Previously this was indistinguishable from "just
+          // paused": the poster stayed up, the tap-to-play button showed,
+          // and clicking it silently failed again with nothing surfaced
+          // anywhere. e.currentTarget.error carries the real MediaError
+          // code, logged here since the UI itself only has room for a
+          // one-line summary.
+          const mediaError = e.currentTarget.error;
+          console.error('Video failed to load:', video.url, mediaError?.code, mediaError?.message);
+          setHasError(true);
+          setIsPlaying(false);
+        }}
       />
 
-      {/* Top bar: author + mute + owner menu */}
-      <div className="absolute top-0 inset-x-0 p-3 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between z-10">
-        <Link to={`/profile/${video.author?.username}`} className="flex items-center gap-2 min-w-0">
+      {/* Real load failure — distinct from "just paused". Tells the user
+          straight out that THIS video didn't load (wrong URL, blocked
+          domain, etc.) instead of showing a play button that quietly does
+          nothing when clicked. */}
+      {hasError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-center px-6 z-[5]">
+          <Film size={28} className="text-white/60" />
+          <p className="text-white text-sm font-medium">Couldn't load this video</p>
+          <p className="text-white/50 text-xs">The source may be unavailable or blocked on this network.</p>
+          <button
+            onClick={handleRetry}
+            className="mt-1 px-4 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {/* Tap-to-play affordance — shown whenever the video is paused, for
+          whatever reason (autoplay blocked, user paused it, still
+          buffering). Without this there was no visual cue that clicking
+          the video does anything, or any way to tell it wasn't just
+          frozen. */}
+      {!isPlaying && !hasError && (
+        <button
+          onClick={handleTogglePlay}
+          aria-label="Play video"
+          className="absolute inset-0 flex items-center justify-center z-[5]"
+        >
+          <span className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center">
+            <Play size={28} className="text-white ml-1" fill="white" />
+          </span>
+        </button>
+      )}
+
+      {/* Top bar: author + mute + owner menu. The name row gets its own
+          solid-ish scrim (not just the wide gradient) so it stays legible
+          over bright frames — the gradient alone thinned out too fast and
+          the name read as "overlapping" whatever was directly behind it. */}
+      <div className="absolute top-0 inset-x-0 p-3 bg-gradient-to-b from-black/70 via-black/25 to-transparent flex items-center justify-between z-10">
+        <Link
+          to={`/profile/${video.author?.username}`}
+          className="flex items-center gap-2 min-w-0 bg-black/45 backdrop-blur-sm rounded-full pl-1 pr-3 py-1"
+        >
           <Avatar src={video.author?.avatar} name={video.author?.fullName ?? 'Unknown'} size="sm" />
-          <span className="text-white text-sm font-semibold drop-shadow truncate">{video.author?.fullName}</span>
+          <span className="text-white text-sm font-semibold truncate">{video.author?.fullName}</span>
         </Link>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button

@@ -325,6 +325,13 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Stale login after reload (no feed/notifications) traced to two stacked bugs: `requireAuth` throwing a plain `Error` instead of a coded `GraphQLError`, and the auto-logout path only clearing half the persisted auth state — both fixed (2026-09-07 (1))
 - [x] Mobile nav: profile menu / Log Out pushed off-screen by a non-shrinking search box — fixed (2026-09-07 (1))
 - [x] Watch (video feed / reels) — first of the three placeholder nav destinations built out for real (2026-09-07 (2))
+- [x] Navbar profile dropdown had Dark Mode toggle + Log Out duplicated from Settings/left sidebar — replaced with Settings & Privacy / Saved links (2026-09-07 (3))
+- [x] Watch: no visual cue that a paused/frozen video could be tapped to play; username row hard to read over bright video frames — both fixed (2026-09-07 (4))
+- [x] Watch: a genuine video load failure (bad/blocked URL) looked identical to "just paused" — no error was ever surfaced — added onError handling + a visible retry state (2026-09-07 (5))
+- [x] Watch: seed videos returned 403 Forbidden — Google's `gtv-videos-bucket` demo bucket has locked down public access — swapped to Cloudinary's own demo assets + MDN sample videos (2026-09-07 (6)). **Requires re-running `npm run seed`** to replace the old broken URLs already in the DB.
+- [x] Watch: one MDN sample URL (`bumblebee.mp4`) 404'd — guessed filename was wrong, replaced with a confirmed-working one; also removed autoplay entirely per user request — videos now only play on tap (2026-09-07 (7))
+- [x] Watch: no gap between stacked reels in the scroll-snap feed — cards touched edge-to-edge (2026-09-07 (8))
+- [x] Watch: liking a video threw "Something went wrong" — `VideoComment.id` came back null because comments were built by spreading a live Mongoose subdocument (2026-09-07 (9))
 - [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
 
 ### Open items
@@ -338,6 +345,13 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-07 (9) | Sep 7 | Watch: liking a video threw "Something went wrong" — `VideoComment.id` resolved to null | ✅ Fixed |
+| 2026-09-07 (8) | Sep 7 | Watch: no visible gap between stacked reels — cards touched edge-to-edge | ✅ Fixed |
+| 2026-09-07 (7) | Sep 7 | One MDN seed URL 404'd (bad guess); autoplay removed entirely — Watch videos now play on tap only | ✅ Fixed |
+| 2026-09-07 (6) | Sep 7 | Watch seed videos 403ing — Google's demo bucket locked down public access; re-seed required | ✅ Fixed |
+| 2026-09-07 (5) | Sep 7 | Watch: a real video load failure was indistinguishable from "just paused" — no error surfaced anywhere | ✅ Fixed |
+| 2026-09-07 (4) | Sep 7 | Watch: no play affordance on a paused video; username hard to read over bright frames | ✅ Fixed |
+| 2026-09-07 (3) | Sep 7 | Navbar profile dropdown had Dark Mode toggle + Log Out duplicated from Settings/left sidebar | ✅ Fixed |
 | 2026-09-07 (2) | Sep 7 | Watch (video feed / reels) built out — new `Video` model/schema/resolvers, upload composer, swipeable feed | ✅ Fixed |
 | 2026-09-07 (1) | Sep 7 | Stale login after reload (`requireAuth` uncoded error + half-cleared auth state); mobile nav pushed Log Out off-screen | ✅ Fixed |
 | 2026-08-24 (6) | Aug 24 | Settings page unreadable text + misaligned toggles — traced to an incomplete Tailwind color palette | ✅ Fixed |
@@ -369,6 +383,108 @@ Running log of gaps found during review, kept up to date as issues are found and
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-07 (9) — Watch: liking a video threw "Something went wrong"
+
+**Symptom (reported by the user, with a console screenshot):** clicking the heart/like button on a reel showed a generic "Something went wrong" toast. Console: `[GraphQL error] op=ReactToVideo: Cannot return null for non-nullable field VideoComment.id.`
+
+**Root cause:** `Video.comments`'s field resolver (`backend/src/graphql/resolvers/video.resolvers.ts`) built each comment with `{ ...c, author: authors[i] }`. `reactToVideo`/`removeVideoReaction` return a live Mongoose document (not `.lean()`'d — they need to call `.save()` / `$pull`), and object-spreading a Mongoose subdocument does not reliably carry over `_id` as an own enumerable property. So `_id` silently vanished during the spread, and `VideoComment.id` (which reads `parent._id ?? parent.id`) had nothing to resolve — the query failed entirely instead of just missing a field, because `id` is non-nullable.
+
+**Why `commentOnVideo` didn't hit this:** it explicitly calls `.populate('comments.author', ...)` and the resolver's "already populated" shortcut returned the raw subdocuments untouched (no spread) in that specific path — so the bug was latent, only triggered by the two mutations that don't populate `comments.author` first.
+
+**Fix:** replaced the spread with building the `VideoComment` shape field-by-field (`c._id`, `c.content`, `c.createdAt`, `c.author`) — direct property access on a Mongoose subdocument is reliable regardless of whether the parent document is lean or live; it's specifically spreading into a new plain object that isn't.
+
+**Files touched:** `backend/src/graphql/resolvers/video.resolvers.ts`
+
+**Status:** ✅ Fixed.
+
+### 2026-09-07 (8) — Watch: no gap between stacked reels
+
+**Symptom (reported by the user, with a screenshot):** consecutive reels in the vertical scroll-snap feed touched edge-to-edge with no visible separation, making it unclear where one video ended and the next began.
+
+**Fix (`frontend/src/pages/Watch.tsx`):** added `pb-3` to each card's wrapper `div` instead of a margin. This matters for scroll-snap specifically: `scroll-snap-align` measures an element's border-box, so padding (which stays inside the border box) keeps each wrapper at exactly one container-height per snap step — the padding just eats into `VideoCard`'s own render area, leaving a visible gap without shifting snap alignment the way a margin between elements would have.
+
+**Files touched:** `frontend/src/pages/Watch.tsx`
+
+**Status:** ✅ Fixed.
+
+### 2026-09-07 (7) — One MDN seed URL 404'd; autoplay removed per request
+
+**Confirmed via the user's Network tab (following up on 2026-09-07 (6)):** after re-seeding, 5 of the 6 replacement URLs loaded fine, but `interactive-examples.mdn.mozilla.net/media/cc0-videos/bumblebee.mp4` returned **404 Not Found** — that exact filename was a guess made without network access to verify against MDN's actual file listing, and it was wrong.
+
+**Fix (`backend/src/scripts/seed.ts`):** rather than guess a second unverified filename, `bumblebee.mp4` was replaced with a repeat of `friday.mp4` — already confirmed loading. The pool is now 5 distinct URLs (dog/elephants/sea_turtle/flower/friday) cycled across the 12 seeded videos. **Requires another `npm run seed`** to replace the still-broken `bumblebee.mp4` records already in the DB.
+
+**Also requested — no autoplay:** videos previously called `el.play()` automatically once scrolled into view. Removed entirely:
+- `frontend/src/components/Watch/VideoCard.tsx` — the `isActive` effect now only pauses on scroll-out; it never calls `.play()` on scroll-in. `isPlaying` now initializes to `false` (previously `true`, which would have hidden the tap-to-play button by mistake once autoplay was removed, since without an autoplay call there'd be no `onPause` event to correct it). The 2-second "count as a view" timer moved from the old scroll-based effect into the `<video>`'s own `onPlay`/`onPause` handlers, since a view now only makes sense to count once the person actually presses play.
+- `frontend/src/pages/Watch.tsx` — updated a comment that referred to the first video "playing" on load; nothing there ever auto-played by itself (it only tracks which card is eligible to be paused on scroll-out), but the wording was misleading given the autoplay change.
+
+**Files touched:** `backend/src/scripts/seed.ts`, `frontend/src/components/Watch/VideoCard.tsx`, `frontend/src/pages/Watch.tsx`
+
+**Status:** ✅ Fixed, pending user confirmation after re-seeding.
+
+### 2026-09-07 (6) — Watch seed videos 403ing: Google's demo bucket locked down
+
+**Confirmed via the user's Network tab (following up on 2026-09-07 (5)):** every seed video request to `commondatastorage.googleapis.com/gtv-videos-bucket/...` returned **403 Forbidden** — not a CORS or network-block issue (the response carried `Access-Control-Allow-Origin: *`). The bucket itself has restricted public access since these URLs were chosen. So the earlier "not an actual video" question had a real answer: the files are genuine, but the host that used to serve them publicly no longer does.
+
+**Fix (`backend/src/scripts/seed.ts`):** replaced the `gtv-videos-bucket` URL list with two sources with a much longer track record of staying open for exactly this kind of demo use:
+- Cloudinary's own official public demo assets (`res.cloudinary.com/demo/video/upload/...`) — notably the same CDN this app's real uploads already run on
+- MDN's documentation sample videos (`interactive-examples.mdn.mozilla.net/media/cc0-videos/...`)
+
+The pool shrank from 12 unique files to 6 known ones; the seed script still creates 12 `Video` documents by cycling through the 6 URLs (`VIDEOS[i % VIDEOS.length]`) rather than silently reducing seed volume.
+
+**⚠️ Not independently verified:** this fix was made in a sandbox with no outbound network access, so neither the old bucket's 403 nor the new URLs' reachability could be tested directly here — the 403 diagnosis rests entirely on the Network tab screenshot provided, and the replacement URLs are a best-effort swap to more durable hosts, not a confirmed-working one. **If any of the new URLs still fail, check the Network tab the same way and report the status code.**
+
+**Action required:** the old (broken) video documents are already sitting in the database from the first `npm run seed` run — reloading the page alone won't pick up this fix. Run `npm run seed` (in `backend/`) again; the script's existing `Video.deleteMany({})` step will replace them with fresh documents pointing at the new URLs.
+
+**Files touched:** `backend/src/scripts/seed.ts`
+
+**Status:** ✅ Fixed, pending user confirmation after re-seeding.
+
+### 2026-09-07 (5) — Watch: a real video load failure looked identical to "just paused"
+
+**Symptom (reported by the user, following up on 2026-09-07 (4)):** After adding the tap-to-play button, the first video still didn't play — clicking the play icon did nothing, with no explanation. Asked whether the seed data was actually valid video.
+
+**Diagnosis:** the seed videos (`backend/src/scripts/seed.ts`) are real, playable `.mp4` files hotlinked from Google's public GCS sample bucket (`commondatastorage.googleapis.com`) — not fakes. But `VideoCard.tsx` had no `onError` handling on the `<video>` element: if the browser fails to load the source for *any* reason (the domain blocked on this network, a dead URL, a codec issue), the poster image stays up indefinitely and `el.play()` just keeps silently rejecting on every click — visually identical to a video that's simply paused, with nothing anywhere to tell the two apart.
+
+**Fix (`frontend/src/components/Watch/VideoCard.tsx`):**
+1. Added `onError` on the `<video>` element — reads the real `MediaError` code/message via `e.currentTarget.error` and logs it to the console, then sets a `hasError` state.
+2. Added a distinct error UI (separate from the plain pause state) — "Couldn't load this video" with a **Try again** button that calls `.load()` + `.play()` again.
+3. `play()` rejections in the autoplay effect and the manual toggle are now logged (`console.warn`, ignoring the harmless `AbortError` from normal pause/play races) instead of silently swallowed.
+
+**Still open — this only makes the failure diagnosable, it doesn't fix a network block:** if the seed videos genuinely can't load in a given environment (e.g. `googleapis.com` blocked by a network policy), the fix above will now say so clearly and let it be confirmed via the browser console / Network tab, but doesn't change where the files are hosted. If that turns out to be the actual cause, the real fix is moving seed video hosting off Google's demo bucket — flagged here rather than guessed at, since there was no way to verify from this environment (no network access) whether that bucket is actually reachable from the deployment being tested.
+
+**Files touched:** `frontend/src/components/Watch/VideoCard.tsx`
+
+**Status:** ✅ Error handling fixed and shipped. ⚠️ Root cause of "why didn't `commondatastorage.googleapis.com` load" not yet confirmed — needs the console/Network tab output from an actual browser session to pin down.
+
+### 2026-09-07 (4) — Watch: no play affordance, username hard to read
+
+**Symptom (reported by the user, with a screenshot):** In the Watch feed, a paused/frozen video gave no indication it could be tapped to play — clicking toggled play/pause with zero visual feedback either way, so it wasn't discoverable. Separately, the author name overlaid on the video was hard to read / looked "overlapped" against bright frames.
+
+**Note:** the screenshot also showed a thin red bar under the avatar that isn't produced by any code in `VideoCard.tsx` — my best guess is a browser extension (something like a video-download-helper–style extension commonly injects a colored bar over `<video>` elements) rather than an app bug, but I can't confirm this without a real browser to inspect, so flagging it rather than guessing at a fix.
+
+**Fix (`frontend/src/components/Watch/VideoCard.tsx`):**
+1. Added an `isPlaying` state driven by the `<video>` element's own `onPlay`/`onPause` events (not assumed from whichever action triggered it) — this is now the single source of truth, so it stays correct whether playback started via autoplay, a manual tap, or got silently blocked by the browser.
+2. Added a centered "tap to play" button, shown whenever `isPlaying` is false for any reason — makes it obvious the video is paused and that clicking it does something.
+3. Gave the author name its own solid scrim (`bg-black/45 backdrop-blur-sm` pill) independent of the background gradient, so it stays legible regardless of how bright the video frame behind it is.
+
+**Files touched:** `frontend/src/components/Watch/VideoCard.tsx`
+
+**Status:** ✅ Fixed. **Note:** no network access in this environment to run `npm install`/typecheck or a real browser to confirm the red-bar hypothesis — reviewed by hand.
+
+### 2026-09-07 (3) — Navbar profile dropdown: Dark Mode + Log Out were duplicated
+
+**Symptom (reported by the user, with a screenshot):** The top-right profile dropdown showed "Light Mode" (theme toggle) and "Log Out" — both already present on the Settings page (`Appearance` section + a dedicated Log Out button) and, separately, at the bottom of the left sidebar. Three copies of the same two actions across the app.
+
+**Fix:** `frontend/src/components/Sidebar/Navbar.tsx` — removed the theme-toggle button and Log Out button from this dropdown (along with the now-unused `useUIStore`/`darkMode`/`toggleDarkMode` and `logout`/`handleLogout` wiring) and replaced them with two links that give the dropdown its own reason to exist instead of repeating what's one click away elsewhere:
+- **Settings & Privacy** → `/settings` (where Dark Mode and Log Out still live)
+- **Saved** → `/saved`
+
+**Note — related but out of scope:** the left sidebar (`LeftSidebar.tsx`) still has its own inline Dark Mode toggle and Log Out button, so a third source of truth still exists there. Not touched here since it wasn't what was flagged — worth revisiting if the goal is to fully consolidate down to one place.
+
+**Files touched:** `frontend/src/components/Sidebar/Navbar.tsx`
+
+**Status:** ✅ Fixed. **Note:** no network access in this environment to run `npm install`/typecheck — reviewed by hand.
 
 ### 2026-09-07 (2) — Watch (video feed / reels) built out
 

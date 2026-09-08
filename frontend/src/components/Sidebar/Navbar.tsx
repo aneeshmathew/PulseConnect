@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Home, Users, Store, PlaySquare,
   Bell, MessageCircle, ChevronDown, X, Check, UserX,
+  Settings, Bookmark,
 } from 'lucide-react';
 import {
   GET_NOTIFICATIONS, SEARCH_USERS,
@@ -13,7 +14,7 @@ import {
 } from '@/lib/graphql';
 import { subscriptionsEnabled } from '@/lib/apollo';
 import { Avatar } from '@/components/UI/Avatar';
-import { useAuthStore, useUIStore, useNotificationStore } from '@/store';
+import { useAuthStore, useNotificationStore } from '@/store';
 import { timeAgo, cn } from '@/utils';
 import toast from 'react-hot-toast';
 
@@ -31,8 +32,7 @@ const NOTIF_ICONS: Record<string, string> = {
 };
 
 export function Navbar() {
-  const { user, logout } = useAuthStore();
-  const { darkMode, toggleDarkMode } = useUIStore();
+  const { user } = useAuthStore();
   const { unreadCount, incrementUnread, setUnreadCount } = useNotificationStore();
   const navigate = useNavigate();
   // ✅ Fix: use React Router's useLocation, NOT window.location
@@ -211,11 +211,6 @@ export function Navbar() {
       ))}
     </>
   );
-
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate('/login', { replace: true });
-  }, [logout, navigate]);
 
   return (
     <nav
@@ -499,21 +494,35 @@ export function Navbar() {
                   </div>
                 </Link>
                 <div className="border-t border-gray-100 dark:border-gray-700 p-2 space-y-0.5">
-                  <button
+                  {/* ✅ Replaced Dark Mode toggle + Log Out here — both
+                      already live on the Settings page (and, separately,
+                      in the left sidebar), so having a third copy in this
+                      dropdown was pure duplication with no independent
+                      purpose. Settings & Privacy / Saved give this menu
+                      its own reason to exist instead of repeating what's
+                      one click away elsewhere. */}
+                  <Link
+                    to="/settings"
                     role="menuitem"
-                    onClick={toggleDarkMode}
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-surface-dark-3 transition-colors flex items-center gap-2"
+                    onClick={() => setShowProfile(false)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-surface-dark-3 transition-colors flex items-center gap-2.5"
                   >
-                    {darkMode ? '☀️' : '🌙'}
-                    <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-                  </button>
-                  <button
+                    <span className="w-8 h-8 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center flex-shrink-0">
+                      <Settings size={15} />
+                    </span>
+                    <span>Settings &amp; Privacy</span>
+                  </Link>
+                  <Link
+                    to="/saved"
                     role="menuitem"
-                    onClick={handleLogout}
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    onClick={() => setShowProfile(false)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-surface-dark-3 transition-colors flex items-center gap-2.5"
                   >
-                    Log Out
-                  </button>
+                    <span className="w-8 h-8 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center flex-shrink-0">
+                      <Bookmark size={15} />
+                    </span>
+                    <span>Saved</span>
+                  </Link>
                 </div>
               </motion.div>
             )}

@@ -174,11 +174,29 @@ export const videoResolvers = {
     comments: async (parent: any, _: unknown, { loaders }: GraphQLContext) => {
       const list = parent.comments ?? [];
       if (!list.length) return [];
-      if (typeof list[0].author === 'object' && list[0].author?.firstName) {
-        return list;
-      }
-      const authors = await loaders.userLoader.loadMany(list.map((c: any) => c.author.toString()));
-      return list.map((c: any, i: number) => ({ ...c, author: authors[i] }));
+
+      // ✅ Fix: this used to `{ ...c, author: authors[i] }` — spreading a
+      // Mongoose subdocument. reactToVideo/removeVideoReaction return a
+      // live (non-.lean()) document, since they need .save()/$pull, and
+      // object-spreading a Mongoose subdocument does NOT reliably carry
+      // over `_id` as an own enumerable property. That silently dropped
+      // `_id`, and VideoComment.id (which reads parent._id ?? parent.id)
+      // had nothing to resolve — "Cannot return null for non-nullable
+      // field VideoComment.id". Building the shape field-by-field instead
+      // of spreading works identically for lean plain objects and live
+      // Mongoose subdocuments, since direct property access (c._id,
+      // c.content, ...) is reliable on both.
+      const alreadyPopulated = list[0]?.author && typeof list[0].author === 'object' && 'firstName' in list[0].author;
+      const authors = alreadyPopulated
+        ? list.map((c: any) => c.author)
+        : await loaders.userLoader.loadMany(list.map((c: any) => c.author.toString()));
+
+      return list.map((c: any, i: number) => ({
+        id: c._id?.toString() ?? c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        author: authors[i],
+      }));
     },
   },
 

@@ -25,9 +25,11 @@ export function WatchPage() {
   const hasMore = data?.watchFeed?.hasMore;
   const nextCursor = data?.watchFeed?.nextCursor;
 
-  // Default to the first video being "active" (playing) as soon as the
-  // feed loads, rather than waiting for the user to scroll before anything
-  // autoplays.
+  // Mark the first video as "active" as soon as the feed loads, so its
+  // tap-to-play button is live immediately rather than only after the user
+  // scrolls once. This does NOT start playback — VideoCard only pauses on
+  // scroll-out, it never auto-plays on scroll-in (playback is opt-in, per
+  // user request).
   useEffect(() => {
     if (!activeId && videos.length > 0) setActiveId(videos[0].id);
   }, [videos, activeId]);
@@ -111,7 +113,12 @@ export function WatchPage() {
                 if (el) cardRefs.current.set(v.id, el);
                 else cardRefs.current.delete(v.id);
               }}
-              className="h-full snap-start snap-always"
+              // pb-3 (not margin) so the snapped box's border-box height —
+              // what scroll-snap actually measures — stays exactly one
+              // container height per card; the padding just eats into the
+              // VideoCard's own render area, leaving a visible gap without
+              // throwing off snap alignment the way a margin would.
+              className="h-full pb-3 snap-start snap-always"
             >
               <VideoCard video={v} isActive={activeId === v.id} onDeleted={handleDeleted} />
             </div>

@@ -343,23 +343,32 @@ async function seed() {
   );
   console.log(`📸 Created ${users.length} stories`);
 
-  // ── 5b. Watch videos ─────────────────────────────────────────────────────
-  // Standard freely-available sample video files (Google's public GCS demo
-  // bucket) — the same assets commonly used to seed/demo video players,
-  // parallel to how IMAGES above uses free Unsplash stock photos.
+  // ⚠️ 2026-09-07: the original list here (Google's `gtv-videos-bucket`) now
+  // returns 403 Forbidden on every file — confirmed via the browser Network
+  // tab, not a CORS/network-block issue (the response even carries
+  // Access-Control-Allow-Origin: *), the bucket itself has locked down
+  // public access since. Swapped to Cloudinary's own official public demo
+  // assets and MDN's documentation sample videos instead — both have a much
+  // longer track record of staying open for exactly this kind of use, and
+  // the Cloudinary ones in particular run on the same CDN this app's real
+  // uploads already use. I could not verify network reachability for
+  // either from the sandbox this fix was made in (no outbound network
+  // access there) — if `npm run seed` + reloading Watch still shows a
+  // failed request in the Network tab, report the new status code so the
+  // list below can be corrected again.
   const VIDEOS = [
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+    'https://res.cloudinary.com/demo/video/upload/dog.mp4',
+    'https://res.cloudinary.com/demo/video/upload/elephants.mp4',
+    'https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4',
+    'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+    'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4',
+    // ⚠️ 2026-09-07: 'bumblebee.mp4' at this path 404s — that filename was
+    // a guess (made without network access to verify) and it was wrong.
+    // Rather than guess a second unverified name, reusing 'friday.mp4' —
+    // already confirmed loading — is the safe choice. If a genuinely
+    // distinct 6th clip is wanted, verify the exact filename in a browser
+    // first (MDN's own cc0-videos listing) before swapping this back in.
+    'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4',
   ];
   const VIDEO_CAPTIONS = [
     'Quick clip from today 🎬', 'This made my whole week 😂', 'POV: it\'s finally the weekend',
@@ -369,15 +378,16 @@ async function seed() {
     'Nothing beats a good road trip playlist 🚗',
   ];
 
+  const VIDEO_COUNT = 12; // keep the same seed volume even though the URL pool above shrank to 6 known-good sources
   const videoDocs: any[] = [];
-  for (let i = 0; i < VIDEOS.length; i++) {
+  for (let i = 0; i < VIDEO_COUNT; i++) {
     const author = users[i % users.length];
     const reactors = pickSome(users.filter((u: any) => u._id.toString() !== author._id.toString()), 0, 6);
     const commenters = pickSome(users, 0, 3);
 
     const video = new Video({
       author: author._id,
-      url: VIDEOS[i],
+      url: VIDEOS[i % VIDEOS.length],
       // Portrait placeholder thumbnail — Cloudinary-uploaded videos derive
       // a real poster frame at upload time (see CreateVideoModal.tsx), but
       // seed data has no Cloudinary asset behind it, so a stock photo
@@ -396,7 +406,7 @@ async function seed() {
         createdAt: new Date(),
       })),
       viewCount: Math.floor(Math.random() * 5000) + 100,
-      createdAt: daysAgo(Math.floor(i * 20 / VIDEOS.length), 8),
+      createdAt: daysAgo(Math.floor((i * 20) / VIDEO_COUNT), 8),
     });
     await video.save();
     videoDocs.push(video);
