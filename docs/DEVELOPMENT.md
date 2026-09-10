@@ -1,256 +1,141 @@
-# PulseConnect — Full-Stack Socialbook-Style Social Network
+# PulseConnect — Development Blueprint
 
-PulseConnect is a modern, high-performance, full-stack social media application engineered to replicate the seamless user experience and rich feature set of SocialApp. Designed with scalability and responsiveness in mind, it handles real-time interactions, data-heavy feeds, and fluid navigation for a production-ready environment.
-
-Core Features
-
-    Interactive Social Feed: Create, edit, and delete text and media posts, engage with threaded comments, and interact using a Socialbook-style multi-emoji reaction system.
-
-    Real-Time Communications: Instant messaging, live notifications, and instantaneous feed updates driven by bidirectional WebSocket connections.
-
-    Rich User Profiles: Customizable personal spaces featuring user bios, profile avatars, media galleries, and dynamic friend or follower relationship management.
-
-    Optimized Performance: Utilizes virtual scrolling algorithms to render thousands of posts in long-form feeds smoothly without layout jank or performance degradation.
-
-Technology Stack
-
-    Frontend: React and TypeScript, paired with responsive CSS layout frameworks for multi-device support.
-
-    API Architecture: GraphQL for precise, robust data fetching, mutations, and real-time subscription streaming.
-
-    Backend & Database: Node-based server architecture integrated with MongoDB for flexible schema design and rapid document retrieval.
-
-    Real-Time Layer: WebSockets for instantaneous messaging and push updates.
-
-Engineering Highlights
-
-    End-to-end type safety enforced via TypeScript across both client-side components and server operations.
-
-    Optimized data-loading strategies, including pagination and GraphQL query batching, to minimize network bandwidth consumption.
-
-    Modular, production-grade architecture built with clean separation of concerns, making it ready for horizontal scaling and containerized deployment.
----
-
-## 🗂️ Project Structure
-
-```
-pluseconnect/
-├── backend/                   # Node.js + Apollo GraphQL API
-│   └── src/
-│       ├── config/
-│       │   └── database.ts        # MongoDB connection
-│       ├── models/
-│       │   ├── User.ts            # User schema
-│       │   ├── Post.ts            # Post + media + reactions
-│       │   ├── Comment.ts         # Nested comments
-│       │   ├── Message.ts         # Conversations + messages
-│       │   ├── Notification.ts    # Notification system
-│       │   └── Story.ts           # 24h stories (TTL index)
-│       ├── graphql/
-│       │   ├── typedefs/          # Full GraphQL schema
-│       │   ├── resolvers/
-│       │   │   ├── auth.resolvers.ts
-│       │   │   ├── post.resolvers.ts
-│       │   │   ├── user.resolvers.ts
-│       │   │   ├── message.resolvers.ts
-│       │   │   ├── subscription.resolvers.ts
-│       │   │   └── other.resolvers.ts  # Comments, notifs, stories
-│       │   └── context.ts         # Auth + PubSub context
-│       ├── scripts/
-│       │   └── seed.ts            # Demo data seeder
-│       └── index.ts               # Express + Apollo + WS server
-│
-├── frontend/                  # React + Vite SPA
-│   └── src/
-│       ├── lib/
-│       │   ├── apollo.ts          # Apollo client + WS split link
-│       │   └── graphql.ts         # All GQL queries/mutations/subs
-│       ├── store/
-│       │   └── index.ts           # Zustand: auth, UI, notifications
-│       ├── utils/index.ts         # Helpers, formatters, constants
-│       ├── components/
-│       │   ├── Feed/
-│       │   │   └── Feed.tsx       # Virtual scroll feed + live updates
-│       │   ├── Post/
-│       │   │   ├── PostCard.tsx   # Post with reactions, media, menu
-│       │   │   ├── CreatePost.tsx # Composer with visibility picker
-│       │   │   └── CommentSection.tsx  # Nested comments
-│       │   ├── Stories/
-│       │   │   └── StoriesBar.tsx # Story rings + full-screen viewer
-│       │   ├── Chat/
-│       │   │   └── ChatPanel.tsx  # Floating chat window
-│       │   ├── Sidebar/
-│       │   │   ├── Navbar.tsx     # Top nav + search + notifications
-│       │   │   ├── LeftSidebar.tsx
-│       │   │   └── RightSidebar.tsx
-│       │   └── UI/
-│       │       ├── Avatar.tsx     # Avatar with online indicator
-│       │       └── Skeleton.tsx   # Shimmer loaders
-│       └── pages/
-│           ├── Home.tsx           # Feed page + layout
-│           ├── Auth.tsx           # Login + Register
-│           ├── Profile.tsx        # User profile page
-│           └── Messages.tsx       # Full messenger page
-│
-└── shared/                    # Shared TypeScript types
-```
+> **Purpose of this file:** this is the single source of truth for *where the project actually stands* — what's built, what's verified working, what's stubbed out, and what's next. It's written so that any agentic model (or human) picking up the project cold can get a complete, accurate picture without reading the codebase first. For tech stack, folder structure, setup instructions, and GraphQL API reference, see [`README.md`](../README.md) — this file is intentionally scoped to *progress*, not project mechanics.
 
 ---
 
-## ⚡ Tech Stack
+## 1. Project Status Snapshot
 
-### Backend
-| Tech | Role |
-|------|------|
-| **Node.js + Express** | HTTP server |
-| **Apollo Server 4** | GraphQL API |
-| **graphql-ws** | WebSocket subscriptions |
-| **Mongoose** | MongoDB ODM |
-| **graphql-subscriptions** | PubSub for real-time events |
-| **bcryptjs** | Password hashing |
-| **jsonwebtoken** | JWT authentication |
-| **Zod** | Input validation |
-| **DataLoader** | N+1 query batching |
+PulseConnect is a full-stack Socialbook-style social network (React + TypeScript + GraphQL + MongoDB). The core social product — feed, posts, comments, reactions, stories, messaging, notifications, friends, profiles, a video feed ("Watch"), search, settings, and dark mode — is **built and functionally complete**, backed by a real GraphQL API and MongoDB schema, not mocked data.
 
-### Frontend
-| Tech | Role |
-|------|------|
-| **React 18** | UI framework |
-| **Vite** | Build tool |
-| **@apollo/client** | GraphQL + subscriptions |
-| **graphql-ws** | WebSocket transport |
-| **@tanstack/react-virtual** | Virtual scrolling |
-| **Zustand** | Global state |
-| **Framer Motion** | Animations |
-| **Tailwind CSS** | Styling |
-| **React Router v6** | Routing |
-| **Radix UI** | Accessible primitives |
-| **react-hot-toast** | Toast notifications |
-| **date-fns** | Date formatting |
-| **Lucide React** | Icons |
-
----
-
-### 4. Start Development
-
-```bash
-# From root — starts both backend and frontend
-npm run dev
-
-# Or separately:
-npm run dev:backend   # http://localhost:4000/graphql
-npm run dev:frontend  # http://localhost:5173
-```
-
----
-
-## 🔑 Key Features
-
-### Real-Time: WebSockets (dev) vs Polling (production on Vercel)
-
-This app supports both, and which one is actually active depends on where it's running — this is architectural, not a bug:
-
-- **`backend/src/index.ts`** (the standalone dev server — `npm run dev`, or self-hosted on a normal long-running box) runs a real WebSocket server (`ws` + `graphql-ws`) alongside the HTTP server, listening on `/graphql`. Subscriptions here are genuine push-based real-time.
-- **`backend/api/`** (the Vercel serverless deployment) has **no WebSocket server** — serverless functions are short-lived request-in/response-out, they can't hold a persistent WS connection open, so this was never built for that entrypoint.
-
-The frontend decides which mode to use via `subscriptionsEnabled` in `frontend/src/lib/apollo.ts`:
-```js
-subscriptionsEnabled = VITE_ENABLE_SUBSCRIPTIONS === 'true' || isDevServer || isLocalhost
-```
-So local dev gets real WebSocket subscriptions; the live Vercel deployment falls back to polling unless `VITE_ENABLE_SUBSCRIPTIONS=true` is explicitly set (which it shouldn't be there, since no WS server exists to connect to).
-
-**Polling intervals in production** (`POLL_INTERVAL_MS` in `frontend/src/lib/apollo.ts`):
-
-| What | Interval |
+| Area | Status |
 |---|---|
-| New chat messages | 3s |
-| Conversations list | 8s |
-| Feed new-posts check | 12s |
+| Core social product (feed/posts/comments/reactions/stories/friends/profiles/messaging/notifications/search/settings) | ✅ Complete |
+| Watch (video feed / reels) | ✅ Complete |
+| Marketplace | ❌ Not started — nav link + placeholder page only |
+| Events | ❌ Not started — nav link + placeholder page only |
+| Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
+| Automated test suite | ❌ None exists |
+| Production deploy verification | ⚠️ Unconfirmed — see §5 |
 
-Chat feels close to real-time (3s) but isn't a true push — it's the same UI either way, so this is invisible day-to-day, but worth knowing if you're debugging a "why didn't this update instantly" question on the live site specifically.
-
-**Future exploration:** getting genuine WebSocket subscriptions in production would need either (a) a separate always-on process outside this Vercel serverless setup — e.g. a small Node server on Railway/Render/Fly.io just for the WS layer — or (b) looking into Vercel's own realtime/Edge WebSocket support, which has been evolving and may now cover this use case. Either is a real infrastructure decision, not a quick code change, so it's flagged here for whenever that becomes worth prioritizing rather than attempted speculatively.
-
-- **Live feed** — new posts appear as toast banners
-- **Instant messaging** — chat with typing indicators
-- **Live notifications** — friend requests, likes, comments
-- **Online presence** — green dots update in real time
-
-### Performance
-- **Virtual scroll** with `@tanstack/react-virtual` — renders only visible posts/messages, handles 10,000+ items
-- **Cursor-based pagination** — efficient infinite scroll
-- **Apollo cache** — smart normalization + merge policies
-- **Optimistic updates** — messages appear instantly before server confirms
-
-### Facebook-Like Features
-- 📖 **News Feed** — posts from friends, infinite scroll
-- 📸 **Stories** — 24h stories with ring UI and full-screen viewer
-- ❤️ **Reactions** — Like/Love/Haha/Wow/Sad/Angry with hover picker
-- 💬 **Comments** — nested replies, threaded
-- 👥 **Friends** — requests, accept/decline, suggestions
-- 🔔 **Notifications** — all activity, real-time badge
-- 💌 **Messenger** — floating chat panel + full-page messages
-- 👤 **Profiles** — cover photo, bio, friends grid, posts tab
-- 🌙 **Dark mode** — full dark theme
-- 🔍 **Search** — users by name/username
-
-### Data Architecture
-- **6 MongoDB models** with proper indexes
-- **TTL index** on Stories (auto-expire after 24h)
-- **Cursor-based** feed pagination
-- **PubSub events** for all subscription types
-- **JWT auth** on both HTTP and WebSocket connections
+**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07).
 
 ---
 
-## 📡 GraphQL API
+## 2. Completed Features (verified against code)
 
-### Key Queries
-```graphql
-query { feed(cursor: String, limit: Int) { posts hasMore nextCursor } }
-query { me { id fullName avatar } }
-query { stories { user hasUnviewed stories { id media } } }
-query { conversations { id unreadCount lastMessage } }
-query { notifications(limit: 15) { type message isRead } }
-```
+Each item below reflects a real GraphQL resolver + MongoDB model + working frontend UI, not a placeholder. Where something is a partial implementation or a deliberate simplification, that's called out.
 
-### Key Mutations
-```graphql
-mutation { createPost(input: { content, media, visibility }) { id } }
-mutation { reactToPost(postId: ID!, type: ReactionType!) { reactionSummary } }
-mutation { sendMessage(input: { conversationId, content }) { id } }
-mutation { sendFriendRequest(userId: ID!) { id } }
-```
+### Auth & Users
+- [x] Register / Login with JWT (`auth.resolvers.ts`), password hashing via bcryptjs
+- [x] Auth on both HTTP and WebSocket connections
+- [x] `me` query, session persistence, forced logout on invalid/expired token or unreachable server
 
-### Subscriptions
-```graphql
-subscription { newPost { id content author { fullName } } }
-subscription { newMessage(conversationId: ID!) { id content sender } }
-subscription { typingStatus(conversationId: ID!) { userId isTyping } }
-subscription { newNotification { type message sender { fullName } } }
-```
+### Feed & Posts
+- [x] Create / edit / delete text + media posts, with a visibility picker
+- [x] Cursor-based pagination (base64-encoded ISO timestamp cursors)
+- [x] Virtual-scrolled feed (`@tanstack/react-virtual`) — dynamic row measurement, handles large lists
+- [x] Multi-emoji reactions (Like/Love/Haha/Wow/Sad/Angry) with hover picker
+- [x] Live feed updates (new posts appear as toast banners — WS in dev, polling in prod)
+- [x] Post detail page (`/post/:id`), reached via notification click-through
+- [x] `Post.tags` field resolver (was missing; fixed 2026-08-22 (2))
+
+### Comments
+- [x] Nested comments with one level of replies, own dedicated query (`GET_POST_COMMENTS`) fetched per-post on demand — **not** bundled into feed queries (deliberate: avoids fetching full comment threads for every post in a paginated feed)
+- [x] Emoji picker in the comment composer (custom 12-emoji grid, no external library)
+
+### Stories
+- [x] 24h stories with TTL-indexed auto-expiry (`expireAfterSeconds: 0` on `expiresAt`)
+- [x] Story ring UI + full-screen viewer, text-only and media stories both supported
+- [x] "Add Story" composer
+
+### Messaging
+- [x] Full messenger page (`/messages`, `/messages/:conversationId`) + floating chat panel
+- [x] Typing indicators, optimistic message send (temp ID reconciled on server response)
+- [x] "New message" composer (pencil icon → real flow)
+- [x] Shared chat logic extracted into `useConversationChat` hook (dedup of prior duplicated logic)
+
+### Notifications
+- [x] Real-time badge + list (friend requests, likes, comments)
+- [x] Click-through navigation to the relevant post/profile
+- [x] Accept/Decline actions directly on friend-request notifications
+
+### Friends
+- [x] Real Friends page (requests, accept/decline, suggestions) — replaced original "Coming Soon" placeholder
+
+### Profiles
+- [x] Cover photo + avatar upload/edit (via Cloudinary), bio, posts tab, friends grid
+- [x] Real Photos tab (was hardcoded placeholder) with delete support
+- [x] "Message" button opens/creates the correct conversation
+
+### Watch (video feed / reels)
+- [x] Dedicated `Video` model/schema + resolvers (reactions, comments)
+- [x] Swipeable, scroll-snap vertical feed with tap-to-play (autoplay deliberately removed per request)
+- [x] Upload composer
+- [x] Error state for genuine load failures (distinct from "just paused")
+
+### Saved & Settings
+- [x] Real Saved (bookmarks) page — replaced placeholder
+- [x] Real Settings page — privacy, notifications, password change, dark mode, all backed by real mutations
+
+### Search & UX polish
+- [x] User search by name/username (navbar)
+- [x] Full dark mode theme
+- [x] Route-level code splitting (`React.lazy`) + vendor chunk splitting — fixes the original 500kB+ single-bundle build warning
+
+### Infrastructure
+- [x] Media upload via Cloudinary (moved off local disk — required for Vercel's read-only filesystem)
+- [x] DataLoader for N+1 batching
+- [x] Zod input validation
+- [x] Production-safe GraphQL error logging (expected client errors like `UNAUTHENTICATED` log one compact line; unexpected errors keep full stack traces)
+- [x] Graceful handling of an unreachable backend (forced logout + redirect, silent per latest request — see changelog 2026-09-07 (12))
 
 ---
 
-## 🏗️ Architecture Decisions
+## 3. Pending / Not Started
 
-**Virtual Scroll**: The feed uses `@tanstack/react-virtual` with dynamic measurement. Each `PostCard` is measured after mount so the virtualizer handles variable heights correctly. Overscan of 3 items prevents blank flash on fast scroll.
-
-**Apollo Split Link**: HTTP for queries/mutations, WebSocket for subscriptions. The split is determined by operation type at link creation time.
-
-**Cursor Pagination**: Uses base64-encoded ISO timestamps as cursors. MongoDB query: `{ createdAt: { $lt: decodedCursor } }`. Apollo cache merge policy deduplicates appended pages.
-
-**Subscription Namespacing**: Conversation-specific subs use `${EVENT_NAME}.${conversationId}` channels to avoid broadcasting to all users.
-
-**Optimistic Messages**: Messages are inserted optimistically with a temp ID; Apollo reconciles when the real response arrives.
+- [ ] **Marketplace** — nav link + `ComingSoon` placeholder only. No backend schema, no model, no resolvers exist yet. Same class of work as Watch was before 2026-09-07 (2).
+- [ ] **Events** — same situation as Marketplace: placeholder only, nothing backing it.
+- [ ] **Automated test suite** — there is currently no automated test coverage anywhere in the project. At minimum worth covering, based on bug classes already hit once in production:
+  - A resolver-level regression test for populated-list/ref fields silently returning `null` (the `User.friends` / `Post.tags` bug class).
+  - A test for the Mongoose single-nested-subdocument default-object gotcha (`Message.media` defaulting to `{}` instead of staying absent — caused a hard failure on every text-only chat message before it was caught).
+  - Integration coverage for: `GET_USER` on a seeded user with friends, `feed`/`post` on a seeded post with tags, `sendMessage` with a `recipientId` and no prior conversation, and a message with no `media` attached.
 
 ---
 
-## 🐛 Known Gaps / Bug Log
+## 4. Known Limitations (by design, not bugs)
 
-Running log of gaps found during review, kept up to date as issues are found and fixed. Newest entries at the top. Full details for each fix are below this summary — the table is just for quickly finding one.
+- **Real-time in production is polling, not WebSockets.** Vercel's serverless functions can't hold a persistent WS connection open, so `backend/api/` (the Vercel entrypoint) has no WS server at all — only `backend/src/index.ts` (the standalone dev/self-hosted server) does. The frontend auto-detects this via `subscriptionsEnabled` in `frontend/src/lib/apollo.ts` and falls back to polling in production: chat messages every 3s, conversations list every 8s, feed new-posts check every 12s. This is invisible day-to-day (chat still feels close to real-time) but is the answer if something "should have updated instantly but didn't" on the live deployment specifically.
+  - **Future path, not yet started:** either (a) run a small always-on Node process just for the WS layer (Railway/Render/Fly.io), or (b) evaluate Vercel's own evolving realtime/Edge WebSocket support. This is a real infrastructure decision, not a quick code change — flagged so it isn't re-investigated from scratch later, not because it's urgent.
 
-### Todo list (current)
+---
+
+## 5. Open Risks / Needs Verification
+
+- [ ] **Vercel Node.js runtime version.** Apollo Server 5 requires Node ≥20. This is a dashboard-level setting (Vercel → backend project → Settings → General → Node.js Version) that can't be checked or changed remotely — if it's still pinned to 18.x, the backend will fail to boot on the current deploy. **Needs manual confirmation.**
+- [ ] **No `npm install` / typecheck / build access in the review environment** for at least one recent change set (2026-09-07 (10), the lazy-loading + chunking change) — reviewed by hand only. Worth running `npm run build` for real to confirm the chunk-size warning actually cleared.
+- [ ] **Watch seed data was replaced once already** (Google's demo video bucket got locked down mid-project, 2026-09-07 (6)) — if seed videos ever start failing again, re-run `npm run seed` first before assuming it's a code regression.
+
+---
+
+## 6. Architecture Decisions
+
+These are the non-obvious "why it's built this way" decisions worth knowing before changing related code (full tech stack and structure are in `README.md`):
+
+- **Virtual Scroll**: the feed uses `@tanstack/react-virtual` with dynamic measurement — each `PostCard` is measured after mount so the virtualizer handles variable heights correctly. Overscan of 3 items prevents blank flash on fast scroll.
+- **Apollo Split Link**: HTTP for queries/mutations, WebSocket for subscriptions, split by operation type at link creation time.
+- **Cursor Pagination**: base64-encoded ISO timestamps as cursors; MongoDB query is `{ createdAt: { $lt: decodedCursor } }`. Apollo cache merge policy deduplicates appended pages.
+- **Subscription Namespacing**: conversation-specific subscriptions use `${EVENT_NAME}.${conversationId}` channels to avoid broadcasting to every connected user.
+- **Optimistic Messages**: messages are inserted optimistically with a temp ID; Apollo reconciles once the real server response arrives.
+- **Comments are fetched separately from posts, on demand** — see §2 "Comments" above. This was the direct root cause of a comments-not-showing bug (2026-09-07 (11)) before the separate query existed; keep this pattern in mind if adding new comment-dependent UI.
+
+---
+
+## 7. Full Change History
+
+The detailed log below documents every fix, root cause, and file touched since 2026-08-21, newest first. Kept for historical debugging context — if you hit a bug that feels familiar, search here first before re-diagnosing from scratch.
+
+### Todo list (chronological, as originally tracked)
 
 - [x] Messages page's "New message" pencil icon had no `onClick` handler — fixed (2026-08-23 (1))
 - [x] Friends page — replaced the "Coming Soon" placeholder with a real page (2026-08-23 (2))
@@ -280,14 +165,7 @@ Running log of gaps found during review, kept up to date as issues are found and
 - [x] Production build warned about 500kB+ chunks — every page was a static import bundled into one chunk; converted routes to `React.lazy()` + added vendor `manualChunks` (2026-09-07 (10))
 - [x] Post comments: couldn't post, posted comments never appeared, no previous comments shown, emoji button did nothing — `CommentSection` depended on a `post.comments` field the feed/profile/saved queries never actually fetched (2026-09-07 (11))
 - [x] Offline-logout toast removed per request — server-unreachable now logs out silently, no message shown; deleted stray unrelated scratch file `sol1.js` from the project root (2026-09-07 (12))
-- [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders).
-
-### Open items
-
-- [ ] Build real Marketplace / Events pages — currently "Coming Soon" placeholders (see 2026-08-22 (1)). No backend schema exists yet for either. Watch was completed in 2026-09-07 (2).
-- [ ] No automated test currently guards against a populated-list/ref field silently returning `null`, or against the Mongoose single-nested-subdocument default-object gotcha that caused entry 2026-08-22 (10). Worth a resolver-level integration test suite at some point — `GET_USER` with a seeded user that has friends, `feed`/`post` with a seeded post that has tags, `sendMessage` with a `recipientId` (no prior conversation), and a message with no `media` attached.
-- [ ] **Verify your Vercel project's Node.js runtime is set to 20.x or later.** Apollo Server 5 requires Node ≥20 — this is a project-level dashboard setting Claude cannot see or change remotely. If it's currently pinned to 18.x, the backend will fail to boot after this deploy. Check: Vercel dashboard → backend project → Settings → General → Node.js Version.
-- [ ] **Explore real WebSocket subscriptions in production** (currently polling on Vercel — see the "Real-Time" section above for why). Two directions worth evaluating when this becomes a priority: a separate always-on WS process (Railway/Render/Fly.io), or Vercel's own evolving realtime/Edge WebSocket support. Not urgent — polling is functionally invisible to users today — but flagged so it doesn't get re-investigated from scratch later.
+- [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders). *(Tracked live in §3 above.)*
 
 ### At a glance
 
