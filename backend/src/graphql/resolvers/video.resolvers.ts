@@ -21,13 +21,34 @@ function encodeCursor(date: Date): string {
 async function paginateVideos(query: any, cursor: string | undefined, safeLimit: number) {
   if (cursor) query.createdAt = { $lt: decodeCursor(cursor) };
 
-  const videos = await Video.find(query)
-    .sort({ createdAt: -1 })
-    .limit(safeLimit + 1)
-    .populate({ path: 'author', select: '-password', match: { _id: { $exists: true } } })
-    .lean();
+  // Videos whose author has since been deleted are filtered out below via
+  // populate's `match` + a null-check. Fetching exactly `safeLimit + 1` and
+  // filtering afterward means a deleted-author video occupying one of
+  // those slots silently shrinks the valid count below what's actually
+  // available further back — `hasMore` then reports `false` and the feed
+  // truncates even though more valid videos genuinely exist past the raw
+  // fetch window. Loop, widening the fetch, until there are enough valid
+  // videos to answer `hasMore` correctly or there's truly nothing left to
+  // fetch. Capped at 5 attempts (fetch size doubles each time) so a
+  // pathological run of deleted accounts can't turn one page load into an
+  // unbounded number of queries.
+  const needed = safeLimit + 1;
+  let fetchSize = needed;
+  let valid: any[] = [];
 
-  const valid = (videos as any[]).filter((v: any) => v.author != null);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const videos = await Video.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchSize)
+      .populate({ path: 'author', select: '-password', match: { _id: { $exists: true } } })
+      .lean();
+
+    valid = (videos as any[]).filter((v: any) => v.author != null);
+    const exhausted = videos.length < fetchSize; // fewer docs than asked for — nothing more exists
+    if (valid.length >= needed || exhausted) break;
+    fetchSize *= 2;
+  }
+
   const hasMore = valid.length > safeLimit;
   const items = hasMore ? valid.slice(0, safeLimit) : valid;
   return {

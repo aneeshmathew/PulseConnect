@@ -42,7 +42,9 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+// Exported (not just used internally by `httpChain` below) so it can be
+// unit-tested in isolation — see frontend/tests/lib/apollo.test.ts.
+export const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message, extensions }) => {
       if (extensions?.code === 'UNAUTHENTICATED') {

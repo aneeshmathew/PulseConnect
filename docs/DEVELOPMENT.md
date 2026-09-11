@@ -17,11 +17,11 @@ PulseConnect is a full-stack Socialbook-style social network (React + TypeScript
 | Marketplace | ❌ Not started — nav link + placeholder page only |
 | Events | ❌ Not started — nav link + placeholder page only |
 | Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
-| Automated test suite | 🟡 In progress — backend coverage spans auth, feed/posts, comments, reactions, stories, messaging, notifications; frontend coverage started (CommentSection, useConversationChat). Video/Watch + rest of frontend still untested. CI wiring intentionally out of scope. See §3 |
+| Automated test suite | 🟡 In progress — backend coverage complete for all resolver groups (incl. video/Watch). Frontend covers CommentSection, useConversationChat, PostCard, Auth, stores, apollo.ts; Feed/Profile/Watch(page)/Settings still untested. CI wiring intentionally out of scope. See §3 |
 | Vercel Node.js runtime | ✅ Verified — running 24.x (≥20 required by Apollo Server 5) |
 | Production build (chunk-size fix) | ✅ Verified — confirmed clean |
 
-**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, and a test suite covering the known recurring bug classes has been started on both backend and frontend (2026-09-10).
+**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, the backend resolver test suite is now complete (including a real pagination bug found and fixed along the way), and frontend coverage spans the highest-value components/pages/logic with Feed/Profile/Watch(page)/Settings remaining (2026-09-10).
 
 ---
 
@@ -99,7 +99,7 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
 
 - [ ] **Marketplace** — nav link + `ComingSoon` placeholder only. No backend schema, no model, no resolvers exist yet. Same class of work as Watch was before 2026-09-07 (2).
 - [ ] **Events** — same situation as Marketplace: placeholder only, nothing backing it.
-- [x] **Automated test suite — started 2026-09-10, expanded 2026-09-10.** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks). Coverage now spans every core resolver group except video/Watch:
+- [x] **Automated test suite — started 2026-09-10, expanded 2026-09-10 (twice).** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks). Coverage now spans every resolver group, including video/Watch:
   - [x] Populated-ref regression coverage (`User.friends` / `Post.tags` / `Conversation.participants` bug class) — `user-friends.test.ts`, `post-tags.test.ts`, and the `Conversation.participants` case folded into `send-message.test.ts` (see §7 2026-09-10 (2) for the bug that surfaced there).
   - [x] Mongoose single-nested-subdocument default-object gotcha (`Message.media`) — `message-media.test.ts`.
   - [x] `sendMessage` with a `recipientId` and no prior conversation (find-or-create, no duplicates, either-sends-first) — `send-message.test.ts`.
@@ -108,14 +108,18 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
   - [x] Comments: top-level + nested replies, `repliesCount`, notification on comment, 404 on a non-existent post — `reactions-comments.test.ts`.
   - [x] Notifications: scoped-to-recipient listing, unread count, mark-read and delete both rejecting a non-owner — `notifications.test.ts`.
   - [x] Stories: text-only and media creation, the empty-story rejection, friend-scoped + expiry-filtered `stories` query grouping with self-first ordering, `hasUnviewed` flipping after `viewStory` — `stories.test.ts`.
-  - [ ] **Not yet covered — remaining backend gap:** video/Watch resolvers.
-  - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — all 8 spec files reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
+  - [x] Video/Watch (`video.test.ts`): `createVideo` + URL validation, `watchFeed` visibility scoping (PUBLIC only) and pagination, reactions (add/change/remove), `commentOnVideo`, `deleteVideo` ownership, `incrementVideoView`, and `userVideos` friend/stranger/owner visibility scoping. See §7 2026-09-10 (5) for a real pagination bug found and fixed while writing this file.
+  - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — all 9 spec files reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
   - **CI wiring is intentionally out of scope** — tests run locally via `npm test`, by design, not on push/PR.
 
-  **Frontend — started 2026-09-10.** Vitest + React Testing Library + `@apollo/client/testing`'s `MockedProvider`, mirroring the backend's approach: real components/hooks exercised against mocked GraphQL responses, not shallow rendering. New: `frontend/vitest.config.ts`, `frontend/tests/setup.ts` (jest-dom matchers + RTL cleanup), and two spec files:
+  **Frontend — started 2026-09-10, expanded 2026-09-10.** Vitest + React Testing Library + `@apollo/client/testing`'s `MockedProvider`, mirroring the backend's approach: real components/hooks/pages/stores exercised against mocked GraphQL responses, not shallow rendering. Infra: `frontend/vitest.config.ts`, `frontend/tests/setup.ts` (jest-dom matchers + RTL cleanup).
   - [x] `CommentSection` (`tests/components/CommentSection.test.tsx`) — direct regression coverage for the exact bug in §7's 2026-09-07 (11) entry (comments depending on a field no query ever fetched): loading → real data via `GET_POST_COMMENTS`, the empty state, posting a comment through `CREATE_COMMENT` and seeing it appear after the refetch, and expanding a reply.
   - [x] `useConversationChat` (`tests/hooks/useConversationChat.test.tsx`) — the hook itself, not just a component wrapping it (see §7 2026-08-23 (6), the reason it was extracted in the first place): sending in an existing conversation, sending the very first message to a `recipientId` and promoting to the server-created conversation id, a no-op on empty/whitespace input, and a failed send restoring the typed text + surfacing a toast instead of silently clearing.
-  - [ ] **Not yet covered — remaining frontend gap:** everything else — Auth pages, Feed/PostCard, Profile, Watch, Settings, the `apollo.ts` error-link/polling-fallback logic itself (currently only exercised indirectly by mocking it away in the two specs above), and the zustand stores.
+  - [x] `PostCard` reaction picker (`tests/components/PostCard.test.tsx`) — regression coverage for §7's 2026-08-23 (5) entry (the picker closing before the pointer reached it), driven with fake timers against the actual 500ms open / 400ms close delays, plus clicking an emoji through a real mutation mock.
+  - [x] `Auth` page (`tests/pages/Auth.test.tsx`) — `LoginPage` (email trim/lowercase, server-error display, submit-button disabled state) and `RegisterPage`'s client-side `validateForm` (empty-form errors, the overlapping-password-rules overwrite behavior, mismatched passwords, invalid username characters, per-field error-clear-on-edit, and a full valid submission).
+  - [x] Zustand stores (`tests/store/store.test.ts`) — `useAuthStore` (setAuth/setUser/logout, including the Apollo cache being cleared on logout), `useUIStore` (dark mode toggling the document root class, sidebar, the open/pending-recipient chat state machine), `useNotificationStore`.
+  - [x] `apollo.ts` (`tests/lib/apollo.test.ts`) — `errorLink` (the exact fix in §7's 2026-09-07 (1) entry: both `token` and `auth-storage` cleared together on `UNAUTHENTICATED`, the already-on-`/login` guard, non-auth GraphQL errors left alone, and the connection-failure-vs-ordinary-HTTP-error distinction for network errors) and the `feed`/`messages` cache `merge` functions (append + de-dupe by ref, `messages` scoped per `conversationId`), exercised through the real `writeQuery`/`readQuery` cache API. `errorLink` was made an export (previously module-private) purely so it could be imported here — no behavior change.
+  - [ ] **Not yet covered — remaining frontend gap:** the Feed page/list container itself (as opposed to `PostCard`, which is covered), Profile, Watch (the frontend page — the backend video resolvers it calls are now fully covered), and Settings.
   - **Could not run in this environment**, same reason as the backend suite — reviewed by hand; run `npm install && npm test` from `frontend/` to execute for real.
 
 ---
@@ -189,6 +193,8 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-10 (6) | Sep 10 | Expanded frontend test suite further: PostCard reaction picker, Auth pages, zustand stores, apollo.ts errorLink + cache merge | ✅ Added |
+| 2026-09-10 (5) | Sep 10 | Backend video/Watch test coverage; found and fixed a pagination bug that could silently truncate the feed when a deleted account's video was in the fetch window | ✅ Added / Fixed |
 | 2026-09-10 (4) | Sep 10 | Started frontend test suite (Vitest + React Testing Library + MockedProvider): CommentSection, useConversationChat | ✅ Added |
 | 2026-09-10 (3) | Sep 10 | Expanded backend test suite: auth, reactions, comments, notifications, stories | ✅ Added |
 | 2026-09-10 (2) | Sep 10 | Started the backend test suite (Vitest + in-memory MongoDB); found and fixed a new `Conversation.participants` populated-ref bug in the process | ✅ Added / Fixed |
@@ -234,6 +240,35 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-10 (6) — Expanded frontend test suite further: PostCard, Auth, stores, apollo.ts
+
+**What was added:** four more spec files, extending the frontend suite started in 2026-09-10 (4) to cover the two components/pages named as bug-history hotspots in this file, plus the two pieces of shared client-side logic (stores, Apollo config) that everything else quietly depends on:
+
+- `tests/components/PostCard.test.tsx` — the reaction picker's hover-delay timing (§7 2026-08-23 (5)), driven with `vi.useFakeTimers()` against the actual 500ms open / 400ms close values rather than just confirming the handlers exist: opens after 500ms, survives the button→picker mouse transition (the exact case that used to fail), closes 400ms after leaving the picker, and a real emoji click round-trips through a mocked `REACT_TO_POST` mutation and closes the picker immediately.
+- `tests/pages/Auth.test.tsx` — `LoginPage` (trims/lowercases the email, shows the server's error message on invalid credentials without authenticating, submit button disabled until both fields are filled) and `RegisterPage`'s `validateForm` function directly: empty-form errors, mismatched passwords, invalid username characters, per-field error-clearing on edit, and a full valid submission with trimmed/lowercased email+username. One test specifically documents a real (harmless but worth knowing) quirk in `validateForm`: the password length/uppercase/digit checks are three separate `if`s, not `else if`, so a password failing more than one rule only ever shows the *last* failing rule's message — a future refactor to `else if` would silently change which message users see, and this test would catch that.
+- `tests/store/store.test.ts` — `useAuthStore` (`setAuth`/`setUser`/`logout`, including confirming `logout()` actually calls the mocked Apollo `client.clearStore()`), `useUIStore` (dark mode toggling `document.documentElement`'s class, the sidebar toggle, and the `openChat`/`openChatWithUser`/`closeChat` state machine — confirming `openChat` clears any pending recipient and vice versa), `useNotificationStore`.
+- `tests/lib/apollo.test.ts` — two things: (1) `errorLink`, exercising the exact fix described in its own comment and in §7 2026-09-07 (1) (an earlier version cleared only the `token` localStorage key on an auth failure, leaving the zustand-persisted `auth-storage` entry in place, causing a redirect loop) — both keys clearing together, the already-on-`/login` guard, non-auth GraphQL errors being left alone, and connection-failure network errors (no status, or 502-504) being treated as a logout while an ordinary HTTP error like 400 is not; (2) the `feed` and `messages` cache field policies' `merge` functions, tested through the real `writeQuery`/`readQuery` cache API (append + de-dupe by ref across pages, `messages` correctly scoped per `conversationId` via `keyArgs`) rather than reaching into `InMemoryCache`'s private config.
+
+**One test-infrastructure wrinkle worth knowing:** `apollo.ts` constructs a real `ApolloClient` and a real `graphql-ws` client at module load time, and `graphql-ws` throws synchronously at construction if no `WebSocket` implementation exists anywhere — which jsdom doesn't provide by default. `apollo.test.ts` sets a minimal `globalThis.WebSocket` stub before importing the module (nothing in these tests ever actually opens a connection; `graphql-ws` only connects lazily, on a real subscription). This is also exactly why every other frontend spec file `vi.mock`s `@/lib/apollo` and `@/store` instead of importing them for real — this is the one file that deliberately does the opposite, on purpose, to test that module itself.
+
+**One minimal source change:** `errorLink` in `frontend/src/lib/apollo.ts` was changed from a module-private `const` to `export const` purely so it could be imported in isolation for testing. No behavior change.
+
+**No new bugs found in the frontend pass** — all four areas behaved as written.
+
+**Files touched:** `frontend/src/lib/apollo.ts` (the one-line export change). New files: `frontend/tests/components/PostCard.test.tsx`, `frontend/tests/pages/Auth.test.tsx`, `frontend/tests/store/store.test.ts`, `frontend/tests/lib/apollo.test.ts`.
+
+**Status:** ✅ Written and reviewed by hand against the real components/pages/stores/config. **Could not run in this environment** — same network limitation as every other entry in this section. Run `npm install && npm test` from `frontend/` to execute for real.
+
+### 2026-09-10 (5) — Backend video/Watch test coverage; found and fixed a pagination bug
+
+**What was added:** `backend/tests/resolvers/video.test.ts`, closing the one remaining backend resolver gap named in this file's §3. Covers `createVideo` (default `PUBLIC` visibility, URL validation), `watchFeed` (only ever returns `PUBLIC` videos, regardless of who's asking), video reactions (add → change-in-place → remove, mirroring the same pattern already covered for posts), `commentOnVideo`, `deleteVideo` ownership enforcement, `incrementVideoView`, and `userVideos`'s three-way visibility scoping (owner sees everything, a friend sees `PUBLIC`+`FRIENDS`, a stranger sees only `PUBLIC`). Also specifically re-tests the `VideoComment.id` spread regression already fixed and documented directly in `video.resolvers.ts` (a Mongoose subdocument spread silently dropping `_id`) — once via the live-document path (`commentOnVideo`'s own return value) and once via the lean `video(id)` read-back, plus a multi-commenter case checking that comment ids are actually distinct rather than all resolving to the same fallback.
+
+**Bug found while writing the pagination test (not from the existing changelog):** `paginateVideos()` fetched exactly `safeLimit + 1` raw documents, sorted newest-first, then filtered out any video whose author had since been deleted. When a deleted-author video happened to land inside that `safeLimit + 1` window, the *valid* count could fall below what was actually fetched — and since `hasMore` was computed from the post-filter count, this made pagination report `hasMore: false` and silently stop, even though older valid videos existed just past the raw fetch window and were never even queried for. Not a crash — a quiet, hard-to-notice content-loss bug that would only show up as "the Watch feed seems to run out early" with no error anywhere. Fixed by widening the fetch in a bounded loop (doubling each attempt, capped at 5) until either enough valid videos are found or the query is confirmed exhausted, so a handful of deleted accounts can't truncate the feed early. The test doesn't just check `hasMore` flips correctly — it also fetches the actual next page and confirms the previously-unreachable video is really there.
+
+**Files touched:** `backend/src/graphql/resolvers/video.resolvers.ts` (`paginateVideos()` fix). New file: `backend/tests/resolvers/video.test.ts`.
+
+**Status:** ✅ Written and reviewed by hand against the real schema/resolvers/models. **Could not run in this environment** — same network limitation as every other backend entry. Run `npm install && npm test` from `backend/` to execute for real, and pay particular attention to this file given the fix it's exercising.
 
 ### 2026-09-10 (4) — Started the frontend test suite: CommentSection, useConversationChat
 
