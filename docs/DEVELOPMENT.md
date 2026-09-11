@@ -17,11 +17,11 @@ PulseConnect is a full-stack Socialbook-style social network (React + TypeScript
 | Marketplace | ❌ Not started — nav link + placeholder page only |
 | Events | ❌ Not started — nav link + placeholder page only |
 | Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
-| Automated test suite | 🟡 In progress — backend coverage spans auth, feed/posts, comments, reactions, stories, messaging, notifications; video/Watch + frontend still untested. See §3 |
+| Automated test suite | 🟡 In progress — backend coverage spans auth, feed/posts, comments, reactions, stories, messaging, notifications; frontend coverage started (CommentSection, useConversationChat). Video/Watch + rest of frontend still untested. CI wiring intentionally out of scope. See §3 |
 | Vercel Node.js runtime | ✅ Verified — running 24.x (≥20 required by Apollo Server 5) |
 | Production build (chunk-size fix) | ✅ Verified — confirmed clean |
 
-**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, and a backend test suite covering the known recurring bug classes has been started (2026-09-10).
+**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, and a test suite covering the known recurring bug classes has been started on both backend and frontend (2026-09-10).
 
 ---
 
@@ -108,8 +108,15 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
   - [x] Comments: top-level + nested replies, `repliesCount`, notification on comment, 404 on a non-existent post — `reactions-comments.test.ts`.
   - [x] Notifications: scoped-to-recipient listing, unread count, mark-read and delete both rejecting a non-owner — `notifications.test.ts`.
   - [x] Stories: text-only and media creation, the empty-story rejection, friend-scoped + expiry-filtered `stories` query grouping with self-first ordering, `hasUnviewed` flipping after `viewStory` — `stories.test.ts`.
-  - [ ] **Not yet covered — remaining gap:** video/Watch resolvers, and the frontend entirely (no frontend test tooling exists yet — Vitest + React Testing Library would be the natural fit alongside the existing Vite setup). No CI wiring yet either (tests run locally via `npm test` in `backend/`, not on push/PR).
+  - [ ] **Not yet covered — remaining backend gap:** video/Watch resolvers.
   - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — all 8 spec files reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
+  - **CI wiring is intentionally out of scope** — tests run locally via `npm test`, by design, not on push/PR.
+
+  **Frontend — started 2026-09-10.** Vitest + React Testing Library + `@apollo/client/testing`'s `MockedProvider`, mirroring the backend's approach: real components/hooks exercised against mocked GraphQL responses, not shallow rendering. New: `frontend/vitest.config.ts`, `frontend/tests/setup.ts` (jest-dom matchers + RTL cleanup), and two spec files:
+  - [x] `CommentSection` (`tests/components/CommentSection.test.tsx`) — direct regression coverage for the exact bug in §7's 2026-09-07 (11) entry (comments depending on a field no query ever fetched): loading → real data via `GET_POST_COMMENTS`, the empty state, posting a comment through `CREATE_COMMENT` and seeing it appear after the refetch, and expanding a reply.
+  - [x] `useConversationChat` (`tests/hooks/useConversationChat.test.tsx`) — the hook itself, not just a component wrapping it (see §7 2026-08-23 (6), the reason it was extracted in the first place): sending in an existing conversation, sending the very first message to a `recipientId` and promoting to the server-created conversation id, a no-op on empty/whitespace input, and a failed send restoring the typed text + surfacing a toast instead of silently clearing.
+  - [ ] **Not yet covered — remaining frontend gap:** everything else — Auth pages, Feed/PostCard, Profile, Watch, Settings, the `apollo.ts` error-link/polling-fallback logic itself (currently only exercised indirectly by mocking it away in the two specs above), and the zustand stores.
+  - **Could not run in this environment**, same reason as the backend suite — reviewed by hand; run `npm install && npm test` from `frontend/` to execute for real.
 
 ---
 
@@ -182,6 +189,7 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-10 (4) | Sep 10 | Started frontend test suite (Vitest + React Testing Library + MockedProvider): CommentSection, useConversationChat | ✅ Added |
 | 2026-09-10 (3) | Sep 10 | Expanded backend test suite: auth, reactions, comments, notifications, stories | ✅ Added |
 | 2026-09-10 (2) | Sep 10 | Started the backend test suite (Vitest + in-memory MongoDB); found and fixed a new `Conversation.participants` populated-ref bug in the process | ✅ Added / Fixed |
 | 2026-09-10 (1) | Sep 10 | Verified the two open deploy risks: Vercel Node.js runtime (24.x) and production build (chunk-size fix) | ✅ Verified |
@@ -226,6 +234,24 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-10 (4) — Started the frontend test suite: CommentSection, useConversationChat
+
+**What was added:** frontend test infrastructure — Vitest + React Testing Library + `@testing-library/user-event` + `@apollo/client/testing`'s `MockedProvider` — following the same philosophy as the backend suite (2026-09-10 (2)/(3)): real components and hooks exercised against mocked GraphQL responses, not shallow-rendered or logic extracted into a testable-in-isolation copy. New files: `frontend/vitest.config.ts` (reuses the same `@` path alias as `vite.config.ts`), `frontend/tests/setup.ts` (jest-dom matchers, RTL `cleanup()` between tests), `frontend/tests/components/CommentSection.test.tsx`, `frontend/tests/hooks/useConversationChat.test.tsx`. `frontend/package.json` gained `test` / `test:watch` scripts and the new devDependencies; `tsconfig.json`'s `types` array gained `vitest/globals` and `@testing-library/jest-dom` for editor support (deliberately *not* added to `include`, so test-only type issues can never block `npm run build`'s `tsc` step).
+
+**Why these two first:** both are the frontend halves of bugs already fixed and logged in this file. `CommentSection` is the component behind 2026-09-07 (11) (comments depending on a field no feed/profile/saved query ever fetched) — testing it against a real `GET_POST_COMMENTS` mock means a regression back to "renders whatever prop it's handed" fails a test instead of shipping silently. `useConversationChat` is the hook 2026-08-23 (6) extracted specifically to stop the chat popup and full Messages page from drifting apart — testing the hook directly, rather than only through whichever component happens to render it, means both callers benefit from one set of tests instead of needing their own.
+
+**Coverage added:**
+- `CommentSection`: initial fetch + loading state, the empty state, posting a comment through `CREATE_COMMENT` and it appearing after the component's explicit refetch, and expanding a reply via `repliesCount`.
+- `useConversationChat`: sending in an existing conversation (input clears, no promotion callback fires), a no-op on empty/whitespace-only input, sending the very first message to a `recipientId` with no conversation yet and promoting to the server-created id via `onConversationCreated`, and a failed send restoring the typed text plus firing a toast rather than clearing silently.
+
+**Test-design note:** both spec files `vi.mock('@/store', ...)` and, where relevant, `vi.mock('@/lib/apollo', ...)`, rather than letting the real modules load. Both real modules have import-time side effects (`store/index.ts` imports the real Apollo `client` singleton; `lib/apollo.ts` constructs a real `ApolloClient` plus a `graphql-ws` client at module scope) that have nothing to do with what these specific tests are checking — mocking them keeps the tests fast and deterministic and avoids needing a real WebSocket-capable backend just to test a comment box.
+
+**No new bugs found in this pass.**
+
+**Files touched:** `frontend/package.json`, `frontend/tsconfig.json` — plus the new files listed above. No `src/` changes.
+
+**Status:** ✅ Written and reviewed by hand against the real components/hooks/GraphQL documents. **Could not run in this environment** — no network access here to `npm install` the new test dependencies. Run `npm install && npm test` from `frontend/` to execute for real.
 
 ### 2026-09-10 (3) — Expanded backend test suite: auth, reactions, comments, notifications, stories
 
