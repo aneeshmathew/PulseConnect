@@ -1,8 +1,6 @@
 # PulseConnect — Development Blueprint
 
 > **Purpose of this file:** this is the single source of truth for *where the project actually stands* — what's built, what's verified working, what's stubbed out, and what's next. It's written so that any agentic model (or human) picking up the project cold can get a complete, accurate picture without reading the codebase first. For tech stack, folder structure, setup instructions, and GraphQL API reference, see [`README.md`](../README.md) — this file is intentionally scoped to *progress*, not project mechanics.
->
-
 ---
 
 ## 1. Project Status Snapshot
@@ -98,7 +96,7 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
 
 - [ ] **Marketplace** — nav link + `ComingSoon` placeholder only. No backend schema, no model, no resolvers exist yet. Same class of work as Watch was before 2026-09-07 (2).
 - [ ] **Events** — same situation as Marketplace: placeholder only, nothing backing it.
-- [x] **Automated test suite — started 2026-09-10, expanded 2026-09-10 (twice).** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks). Coverage now spans every resolver group, including video/Watch:
+- [x] **Automated test suite — started 2026-09-10, expanded 2026-09-10 (twice).** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks). Coverage now spans every resolver group, including video/Watch. This is a workspaces monorepo (root `package.json` → `backend`/`frontend`/`shared`) — the root now has `npm test` (runs both workspaces), `npm run test:backend`, and `npm run test:frontend`, so `npm test` from the repo root is the normal way to run everything; each workspace's own `npm test` still works standalone.
   - [x] Populated-ref regression coverage (`User.friends` / `Post.tags` / `Conversation.participants` bug class) — `user-friends.test.ts`, `post-tags.test.ts`, and the `Conversation.participants` case folded into `send-message.test.ts` (see §7 2026-09-10 (2) for the bug that surfaced there).
   - [x] Mongoose single-nested-subdocument default-object gotcha (`Message.media`) — `message-media.test.ts`.
   - [x] `sendMessage` with a `recipientId` and no prior conversation (find-or-create, no duplicates, either-sends-first) — `send-message.test.ts`.
@@ -157,6 +155,7 @@ One line per fix/addition, newest first, since 2026-08-21. Kept short on purpose
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-11 (1) | Sep 11 | Root `package.json` (workspaces monorepo) had no `test` script — each workspace's own `npm test` worked, but `npm test` from the repo root did nothing | ✅ Fixed |
 | 2026-09-10 (6) | Sep 10 | Expanded frontend test suite further: PostCard reaction picker, Auth pages, zustand stores, apollo.ts errorLink + cache merge | ✅ Added |
 | 2026-09-10 (5) | Sep 10 | Backend video/Watch test coverage; found and fixed a pagination bug that could silently truncate the feed when a deleted account's video was in the fetch window | ✅ Added / Fixed |
 | 2026-09-10 (4) | Sep 10 | Started frontend test suite (Vitest + React Testing Library + MockedProvider): CommentSection, useConversationChat | ✅ Added |

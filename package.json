@@ -10,6 +10,9 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend",
+    "test:frontend": "npm run test --workspace=frontend",
     "vercel-build": "node -e \"console.error('This repo deploys to Vercel as TWO separate projects (Root Directory = backend, and Root Directory = frontend) — see DEPLOYMENT.md. Set your Vercel project\\'s Root Directory instead of deploying from the repo root.'); process.exit(1)\""
   },
   "devDependencies": {
