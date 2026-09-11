@@ -273,6 +273,38 @@ export const messageResolvers = {
       if (typeof typing.get === 'function') return typing.get(user._id.toString()) ?? false;
       return typing[user._id.toString()] ?? false;
     },
+
+    // Same bug class as User.friends / Post.tags / Message.conversation
+    // (see the comment on that resolver below): every query resolver in
+    // this file that returns a Conversation does `.populate('participants',
+    // ...)` by hand, EXCEPT the one path that was already fixed to stop
+    // relying on that discipline — Message.conversation's fallback fetch
+    // (`Conversation.findById(parent.conversation).lean()`, no populate).
+    // A client asking for `sendMessage { conversation { participants {
+    // id } } }` hit exactly that gap: raw ObjectIds reaching the
+    // non-nullable `[User!]!` field, which then fails resolving `User.id`
+    // etc. on a bare ObjectId. Resolving it here, the same "lazy-load
+    // whichever shape shows up" way as tags/friends, closes the gap
+    // regardless of which resolver produced the parent Conversation.
+    participants: async (parent: any, _: unknown, { loaders }: GraphQLContext) => {
+      if (!parent.participants?.length) return [];
+      if (typeof parent.participants[0] === 'object' && parent.participants[0]?.firstName) {
+        return parent.participants; // already populated
+      }
+      const users = await loaders.userLoader.loadMany(
+        parent.participants.map((id: any) => id.toString())
+      );
+      return users.filter((u: any) => u && !(u instanceof Error));
+    },
+
+    // Same gap, same fix, for the one nullable ref on this path.
+    lastMessage: async (parent: any) => {
+      if (!parent.lastMessage) return null;
+      if (typeof parent.lastMessage === 'object' && 'content' in parent.lastMessage) {
+        return parent.lastMessage; // already populated
+      }
+      return Message.findById(parent.lastMessage).populate('sender', '-password').lean();
+    },
   },
 
   Message: {

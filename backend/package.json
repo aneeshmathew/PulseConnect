@@ -10,7 +10,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/scripts/seed.ts",
-    "vercel-build": "echo 'Skipping tsc build — Vercel compiles /api functions individually'"
+    "vercel-build": "echo 'Skipping tsc build — Vercel compiles /api functions individually'",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",
@@ -40,7 +42,9 @@
     "@types/node": "^20.11.5",
     "@types/ws": "^8.5.10",
     "@vercel/node": "^3.0.21",
+    "mongodb-memory-server": "^10.1.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.8"
   }
 }

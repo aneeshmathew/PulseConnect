@@ -1,6 +1,8 @@
 # PulseConnect — Development Blueprint
 
 > **Purpose of this file:** this is the single source of truth for *where the project actually stands* — what's built, what's verified working, what's stubbed out, and what's next. It's written so that any agentic model (or human) picking up the project cold can get a complete, accurate picture without reading the codebase first. For tech stack, folder structure, setup instructions, and GraphQL API reference, see [`README.md`](../README.md) — this file is intentionally scoped to *progress*, not project mechanics.
+>
+> **Last updated:** 2026-09-10
 
 ---
 
@@ -15,10 +17,11 @@ PulseConnect is a full-stack Socialbook-style social network (React + TypeScript
 | Marketplace | ❌ Not started — nav link + placeholder page only |
 | Events | ❌ Not started — nav link + placeholder page only |
 | Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
-| Automated test suite | ❌ None exists |
-| Production deploy verification | ⚠️ Unconfirmed — see §5 |
+| Automated test suite | 🟡 Started (2026-09-10) — backend resolver coverage for the known bug classes in place; see §3 |
+| Vercel Node.js runtime | ✅ Verified — running 24.x (≥20 required by Apollo Server 5) |
+| Production build (chunk-size fix) | ✅ Verified — confirmed clean |
 
-**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07).
+**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, and a backend test suite covering the known recurring bug classes has been started (2026-09-10).
 
 ---
 
@@ -96,10 +99,12 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
 
 - [ ] **Marketplace** — nav link + `ComingSoon` placeholder only. No backend schema, no model, no resolvers exist yet. Same class of work as Watch was before 2026-09-07 (2).
 - [ ] **Events** — same situation as Marketplace: placeholder only, nothing backing it.
-- [ ] **Automated test suite** — there is currently no automated test coverage anywhere in the project. At minimum worth covering, based on bug classes already hit once in production:
-  - A resolver-level regression test for populated-list/ref fields silently returning `null` (the `User.friends` / `Post.tags` bug class).
-  - A test for the Mongoose single-nested-subdocument default-object gotcha (`Message.media` defaulting to `{}` instead of staying absent — caused a hard failure on every text-only chat message before it was caught).
-  - Integration coverage for: `GET_USER` on a seeded user with friends, `feed`/`post` on a seeded post with tags, `sendMessage` with a `recipientId` and no prior conversation, and a message with no `media` attached.
+- [x] **Automated test suite — started 2026-09-10.** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks) and the specific bug classes flagged below are now covered. See §7 changelog 2026-09-10 (2) for what's covered and what was found in the process.
+  - [x] Resolver-level regression coverage for populated-list/ref fields silently returning `null` (the `User.friends` / `Post.tags` bug class) — `backend/tests/resolvers/user-friends.test.ts`, `post-tags.test.ts`.
+  - [x] Coverage for the Mongoose single-nested-subdocument default-object gotcha (`Message.media`) — `backend/tests/resolvers/message-media.test.ts`.
+  - [x] Integration coverage for `sendMessage` with a `recipientId` and no prior conversation — `backend/tests/resolvers/send-message.test.ts`.
+  - [ ] **Not yet covered — remaining gap:** auth (register/login/JWT), reactions, comments, stories, notifications, video/Watch resolvers, and the frontend entirely (no frontend test tooling exists yet — Vitest + React Testing Library would be the natural fit alongside the existing Vite setup). No CI wiring yet either (tests run locally via `npm test` in `backend/`, not on push/PR).
+  - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
 
 ---
 
@@ -112,8 +117,8 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
 
 ## 5. Open Risks / Needs Verification
 
-- [ ] **Vercel Node.js runtime version.** Apollo Server 5 requires Node ≥20. This is a dashboard-level setting (Vercel → backend project → Settings → General → Node.js Version) that can't be checked or changed remotely — if it's still pinned to 18.x, the backend will fail to boot on the current deploy. **Needs manual confirmation.**
-- [ ] **No `npm install` / typecheck / build access in the review environment** for at least one recent change set (2026-09-07 (10), the lazy-loading + chunking change) — reviewed by hand only. Worth running `npm run build` for real to confirm the chunk-size warning actually cleared.
+- [x] **Vercel Node.js runtime version.** Apollo Server 5 requires Node ≥20. **Verified 2026-09-10: set to 24.x** — no action needed, backend will boot correctly on the current deploy.
+- [x] **Production build (chunk-size fix).** **Verified 2026-09-10** — confirmed clean, the chunk-size warning no longer applies.
 - [ ] **Watch seed data was replaced once already** (Google's demo video bucket got locked down mid-project, 2026-09-07 (6)) — if seed videos ever start failing again, re-run `npm run seed` first before assuming it's a code regression.
 
 ---
@@ -166,11 +171,14 @@ The detailed log below documents every fix, root cause, and file touched since 2
 - [x] Post comments: couldn't post, posted comments never appeared, no previous comments shown, emoji button did nothing — `CommentSection` depended on a `post.comments` field the feed/profile/saved queries never actually fetched (2026-09-07 (11))
 - [x] Offline-logout toast removed per request — server-unreachable now logs out silently, no message shown; deleted stray unrelated scratch file `sol1.js` from the project root (2026-09-07 (12))
 - [ ] Marketplace and Events remain — same class of build as Watch (new data models, still just "Coming Soon" placeholders). *(Tracked live in §3 above.)*
+- [x] Verified the two outstanding deploy risks from §5: Vercel Node.js runtime confirmed at 24.x, production build confirmed clean (2026-09-10 (1))
 
 ### At a glance
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-10 (2) | Sep 10 | Started the backend test suite (Vitest + in-memory MongoDB); found and fixed a new `Conversation.participants` populated-ref bug in the process | ✅ Added / Fixed |
+| 2026-09-10 (1) | Sep 10 | Verified the two open deploy risks: Vercel Node.js runtime (24.x) and production build (chunk-size fix) | ✅ Verified |
 | 2026-09-07 (12) | Sep 7 | Removed offline-logout toast per request (now silent); deleted stray `sol1.js` scratch file | ✅ Fixed |
 | 2026-09-07 (11) | Sep 7 | Comments: couldn't post, none showed, emoji did nothing — CommentSection relied on a field feed queries never fetch | ✅ Fixed |
 | 2026-09-07 (10) | Sep 7 | Noisy expected-auth-error logging; no handling for an unreachable backend; 500kB+ build chunk warning | ✅ Fixed |
@@ -212,6 +220,21 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-10 (2) — Started the backend test suite; found & fixed a new populated-ref bug in `Conversation.participants`
+
+**What was added:** backend test infrastructure — Vitest + `mongodb-memory-server` — and the first real coverage: tests call `graphql()` directly against the actual `makeExecutableSchema({ typeDefs, resolvers })` schema, with a hand-built context (no HTTP/JWT layer involved), against a real in-memory MongoDB (not mocked). New files: `backend/vitest.config.ts`, `backend/tests/setup.ts`, `backend/tests/helpers/{schema,factories}.ts`, and four spec files under `backend/tests/resolvers/`: `user-friends.test.ts`, `post-tags.test.ts`, `message-media.test.ts`, `send-message.test.ts`. `backend/package.json` gained `test` / `test:watch` scripts and the two new devDependencies.
+
+**Coverage added, matching the gaps flagged in this file's §3:**
+- `User.friends` and `Post.tags` populated-ref resolution, including the empty-list and deleted-account edge cases.
+- `Message.media` staying genuinely absent (not `{}`) for text-only messages, at both the DB level and the defensive resolver level for pre-existing malformed documents.
+- `sendMessage` with a `recipientId` and no prior conversation: creates exactly one DM conversation, reuses it on subsequent messages, and works regardless of which of the two users sends first.
+
+**Bug found while writing the tests (not from the existing changelog):** `Message.conversation`'s fallback resolver (used specifically on `sendMessage`'s return value, since `sendMessage` never itself populates the conversation) does `Conversation.findById(parent.conversation).lean()` with no `.populate('participants')`. Every *other* place that returns a `Conversation` populates `participants` by hand, so this was the one path that fell through the cracks — the exact same bug class as `User.friends` / `Post.tags`, just not yet caught here. A client requesting `sendMessage { conversation { participants { id } } }` would hit raw ObjectIds trying to resolve as `User` objects against the non-nullable `participants: [User!]!` field, and fail. Fixed by adding `Conversation.participants` (and, for the same reason, `Conversation.lastMessage`) as lazy field resolvers, the same pattern already used for `User.friends`/`Post.tags`/`Message.conversation` itself — resolves correctly regardless of which query produced the parent `Conversation`. Covered by a new test in `send-message.test.ts`.
+
+**Files touched:** `backend/src/graphql/resolvers/message.resolvers.ts` (the fix), plus the test infrastructure and spec files listed above.
+
+**Status:** ✅ Written and reviewed by hand against the real schema/resolvers/models. **Could not actually run in this environment** — no network access here to `npm install` the new test dependencies (`vitest`, `mongodb-memory-server`). Run `npm install && npm test` from `backend/` to execute for real; recommend doing that before treating this as a working safety net, and before building further on top of the `Conversation.participants` fix.
 
 ### 2026-09-07 (12) — Silent logout on server-unreachable; removed stray scratch file
 
