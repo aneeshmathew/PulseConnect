@@ -17,7 +17,7 @@ PulseConnect is a full-stack Socialbook-style social network (React + TypeScript
 | Marketplace | ❌ Not started — nav link + placeholder page only |
 | Events | ❌ Not started — nav link + placeholder page only |
 | Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
-| Automated test suite | 🟡 Started (2026-09-10) — backend resolver coverage for the known bug classes in place; see §3 |
+| Automated test suite | 🟡 In progress — backend coverage spans auth, feed/posts, comments, reactions, stories, messaging, notifications; video/Watch + frontend still untested. See §3 |
 | Vercel Node.js runtime | ✅ Verified — running 24.x (≥20 required by Apollo Server 5) |
 | Production build (chunk-size fix) | ✅ Verified — confirmed clean |
 
@@ -99,12 +99,17 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
 
 - [ ] **Marketplace** — nav link + `ComingSoon` placeholder only. No backend schema, no model, no resolvers exist yet. Same class of work as Watch was before 2026-09-07 (2).
 - [ ] **Events** — same situation as Marketplace: placeholder only, nothing backing it.
-- [x] **Automated test suite — started 2026-09-10.** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks) and the specific bug classes flagged below are now covered. See §7 changelog 2026-09-10 (2) for what's covered and what was found in the process.
-  - [x] Resolver-level regression coverage for populated-list/ref fields silently returning `null` (the `User.friends` / `Post.tags` bug class) — `backend/tests/resolvers/user-friends.test.ts`, `post-tags.test.ts`.
-  - [x] Coverage for the Mongoose single-nested-subdocument default-object gotcha (`Message.media`) — `backend/tests/resolvers/message-media.test.ts`.
-  - [x] Integration coverage for `sendMessage` with a `recipientId` and no prior conversation — `backend/tests/resolvers/send-message.test.ts`.
-  - [ ] **Not yet covered — remaining gap:** auth (register/login/JWT), reactions, comments, stories, notifications, video/Watch resolvers, and the frontend entirely (no frontend test tooling exists yet — Vitest + React Testing Library would be the natural fit alongside the existing Vite setup). No CI wiring yet either (tests run locally via `npm test` in `backend/`, not on push/PR).
-  - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
+- [x] **Automated test suite — started 2026-09-10, expanded 2026-09-10.** Backend test infrastructure is in place (Vitest + `mongodb-memory-server`, tests run real resolvers against a real in-memory MongoDB via `graphql()` — not mocks). Coverage now spans every core resolver group except video/Watch:
+  - [x] Populated-ref regression coverage (`User.friends` / `Post.tags` / `Conversation.participants` bug class) — `user-friends.test.ts`, `post-tags.test.ts`, and the `Conversation.participants` case folded into `send-message.test.ts` (see §7 2026-09-10 (2) for the bug that surfaced there).
+  - [x] Mongoose single-nested-subdocument default-object gotcha (`Message.media`) — `message-media.test.ts`.
+  - [x] `sendMessage` with a `recipientId` and no prior conversation (find-or-create, no duplicates, either-sends-first) — `send-message.test.ts`.
+  - [x] Auth: register (incl. case-insensitive email/username uniqueness, password never leaked, bcrypt hashing verified at rest), login (correct/incorrect credentials, no user-enumeration on a non-existent email), `me` (authenticated + unauthenticated) — `auth.test.ts`.
+  - [x] Reactions: add/change-in-place/no-duplicate-notification-on-change, no self-notification — `reactions-comments.test.ts`.
+  - [x] Comments: top-level + nested replies, `repliesCount`, notification on comment, 404 on a non-existent post — `reactions-comments.test.ts`.
+  - [x] Notifications: scoped-to-recipient listing, unread count, mark-read and delete both rejecting a non-owner — `notifications.test.ts`.
+  - [x] Stories: text-only and media creation, the empty-story rejection, friend-scoped + expiry-filtered `stories` query grouping with self-first ordering, `hasUnviewed` flipping after `viewStory` — `stories.test.ts`.
+  - [ ] **Not yet covered — remaining gap:** video/Watch resolvers, and the frontend entirely (no frontend test tooling exists yet — Vitest + React Testing Library would be the natural fit alongside the existing Vite setup). No CI wiring yet either (tests run locally via `npm test` in `backend/`, not on push/PR).
+  - **Could not run in this environment** (no network access here to `npm install` the new test dependencies) — all 8 spec files reviewed by hand for correctness against the actual schema/resolvers/models; run `npm install && npm test` from `backend/` to execute for real before relying on these as a safety net.
 
 ---
 
@@ -177,6 +182,7 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-10 (3) | Sep 10 | Expanded backend test suite: auth, reactions, comments, notifications, stories | ✅ Added |
 | 2026-09-10 (2) | Sep 10 | Started the backend test suite (Vitest + in-memory MongoDB); found and fixed a new `Conversation.participants` populated-ref bug in the process | ✅ Added / Fixed |
 | 2026-09-10 (1) | Sep 10 | Verified the two open deploy risks: Vercel Node.js runtime (24.x) and production build (chunk-size fix) | ✅ Verified |
 | 2026-09-07 (12) | Sep 7 | Removed offline-logout toast per request (now silent); deleted stray `sol1.js` scratch file | ✅ Fixed |
@@ -220,6 +226,21 @@ The detailed log below documents every fix, root cause, and file touched since 2
 
 <details>
 <summary><strong>Full entry details</strong> (click to expand)</summary>
+
+### 2026-09-10 (3) — Expanded backend test suite: auth, reactions, comments, notifications, stories
+
+**What was added:** four new spec files under `backend/tests/resolvers/`, following the same pattern established in 2026-09-10 (2) (real schema, real in-memory MongoDB, hand-built context, no mocking):
+
+- `auth.test.ts` — register (case-insensitive email/username collisions, password never returned over GraphQL, bcrypt hashing confirmed at the DB level rather than assuming it happened), login (correct credentials, wrong password, and a non-existent email all going through `requireAuth`/`UNAUTHENTICATED` consistently — no user-enumeration via differing error messages), and `me` both authenticated and not.
+- `reactions-comments.test.ts` — `reactToPost` (new reaction notifies once, changing an existing reaction updates in place without a duplicate notification, reacting to your own post never notifies you), and `createComment` (top-level comments, nested replies incrementing `repliesCount`, 404 on a non-existent post, notification fired to the post author).
+- `notifications.test.ts` — listing is scoped to the recipient and sorted newest-first, `unreadNotificationsCount` matches, `markNotificationRead` and `deleteNotification` both correctly reject when the caller isn't the notification's recipient (tested by actually attempting it as a different user, not just by reading the resolver's scoping query).
+- `stories.test.ts` — text-only and media story creation (including the media `type` lowercase-normalization), the empty-story rejection, and the `stories` query's friend-scoping + expiry-filtering + self-first grouping + `hasUnviewed` flip after `viewStory`.
+
+**No new bugs found in this pass** — all four resolver groups behaved as the code reads, unlike 2026-09-10 (2) where writing the test surfaced a real gap.
+
+**Files touched:** none in `src/` — test-only addition. New files: `backend/tests/resolvers/{auth,reactions-comments,notifications,stories}.test.ts`.
+
+**Status:** ✅ Written and reviewed by hand against the real schema/resolvers/models. **Could not run in this environment** — same network limitation as 2026-09-10 (2). Run `npm install && npm test` from `backend/` to execute for real.
 
 ### 2026-09-10 (2) — Started the backend test suite; found & fixed a new populated-ref bug in `Conversation.participants`
 
