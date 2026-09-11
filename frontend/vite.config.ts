@@ -13,24 +13,46 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // ✅ Route-level code splitting (see App.tsx's React.lazy() pages)
-        // handles most of the "chunk larger than 500kB" warning by only
-        // loading each page's own code on demand. This complements that:
-        // groups third-party dependencies by how often they actually
-        // change. App code changes on every deploy; @apollo/client,
-        // framer-motion, and friends don't — splitting them into their own
-        // chunks means a deploy that only touches app code lets returning
-        // visitors keep every vendor chunk from browser cache instead of
-        // redownloading all of it because it was bundled alongside
-        // whatever page code changed.
+        // Route-level code splitting (see App.tsx's React.lazy() pages)
+        // handles most of the "chunk larger than 500kB" warning. Vendor
+        // splits below are only for packages that do not import each
+        // other across chunk boundaries — a cycle like vendor →
+        // vendor-apollo → vendor leaves minified imports undefined at
+        // runtime (`TypeError: y is not a function`).
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (id.includes('@apollo/client') || id.includes('graphql-ws') || id.includes('/graphql/')) {
+
+          // Apollo, graphql, graphql-tag, and Apollo's small runtime
+          // helpers must stay in one chunk. Matching only `/graphql/`
+          // left graphql-tag in `vendor`, which imports `graphql` from
+          // `vendor-apollo` and created a circular chunk.
+          if (
+            id.includes('@apollo/client') ||
+            id.includes('@graphql-typed-document-node') ||
+            id.includes('/graphql-tag/') ||
+            id.includes('/graphql-ws/') ||
+            id.includes('/graphql/') ||
+            id.includes('/@wry/') ||
+            id.includes('/optimism/') ||
+            id.includes('/ts-invariant/') ||
+            id.includes('/zen-observable') ||
+            id.includes('/symbol-observable/') ||
+            id.includes('/rehackt/')
+          ) {
             return 'vendor-apollo';
           }
           if (id.includes('framer-motion')) return 'vendor-motion';
           if (id.includes('lucide-react')) return 'vendor-icons';
-          if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) {
+          // Match the react packages themselves, not any path containing
+          // `/react/` (that also caught scheduler/helpers and cycled
+          // with the leftover `vendor` chunk).
+          if (
+            id.includes('/react-dom/') ||
+            id.includes('/react-router') ||
+            id.includes('/@remix-run/') ||
+            id.includes('/scheduler/') ||
+            id.includes('/node_modules/react/')
+          ) {
             return 'vendor-react';
           }
           return 'vendor';
