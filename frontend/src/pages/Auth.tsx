@@ -2,10 +2,14 @@ import { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Eye, EyeOff, Loader2, AlertCircle, Sun, Moon, Mail, Lock,
+  LogIn, Zap, MessageCircle, Users, Sparkles,
+} from 'lucide-react';
 import { LOGIN, REGISTER } from '@/lib/graphql';
-import { useAuthStore } from '@/store';
+import { useAuthStore, useUIStore } from '@/store';
 import { cn } from '@/utils';
+import { Logo } from '@/components/UI/Logo';
 import toast from 'react-hot-toast';
 
 // ─── Shared input field ───────────────────────────────────────────────────────
@@ -19,9 +23,10 @@ interface FieldProps {
   error?: string;
   autoComplete?: string;
   required?: boolean;
+  icon?: React.ElementType;
 }
 
-function InputField({ label, type = 'text', value, onChange, placeholder, error, autoComplete, required }: FieldProps) {
+function InputField({ label, type = 'text', value, onChange, placeholder, error, autoComplete, required, icon: Icon }: FieldProps) {
   const [showPwd, setShowPwd] = useState(false);
   const isPassword = type === 'password';
   const id = label.toLowerCase().replace(/\s+/g, '-');
@@ -32,6 +37,9 @@ function InputField({ label, type = 'text', value, onChange, placeholder, error,
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <div className="relative">
+        {Icon && (
+          <Icon size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
+        )}
         <input
           id={id}
           type={isPassword ? (showPwd ? 'text' : 'password') : type}
@@ -43,7 +51,9 @@ function InputField({ label, type = 'text', value, onChange, placeholder, error,
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
           className={cn(
-            'w-full px-4 py-3 rounded-xl border bg-white dark:bg-surface-dark-3 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition-all text-sm',
+            'w-full py-3 rounded-xl border bg-white dark:bg-surface-dark-3 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition-all text-sm',
+            Icon ? 'pl-10 pr-4' : 'px-4',
+            isPassword && 'pr-11',
             error
               ? 'border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-400/20'
               : 'border-gray-300 dark:border-gray-600 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20'
@@ -54,7 +64,7 @@ function InputField({ label, type = 'text', value, onChange, placeholder, error,
             type="button"
             onClick={() => setShowPwd((v) => !v)}
             aria-label={showPwd ? 'Hide password' : 'Show password'}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
@@ -65,6 +75,83 @@ function InputField({ label, type = 'text', value, onChange, placeholder, error,
           <AlertCircle size={11} /> {error}
         </p>
       )}
+    </div>
+  );
+}
+
+// ─── Theme toggle (shared by Login/Register) ──────────────────────────────────
+
+function ThemeToggle() {
+  const { darkMode, toggleDarkMode } = useUIStore();
+  return (
+    <button
+      type="button"
+      onClick={toggleDarkMode}
+      aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+      className="absolute top-5 right-5 z-20 w-10 h-10 rounded-full flex items-center justify-center bg-white/80 dark:bg-white/10 backdrop-blur-md border border-gray-200/70 dark:border-white/10 text-gray-600 dark:text-gray-200 shadow-sm hover:scale-105 active:scale-95 transition-transform"
+    >
+      {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+    </button>
+  );
+}
+
+// ─── Branding panel (desktop only) ────────────────────────────────────────────
+
+function BrandPanel() {
+  const features = [
+    { icon: Zap, text: 'Live feed & instant updates' },
+    { icon: MessageCircle, text: 'Real-time messaging that keeps up' },
+    { icon: Users, text: 'Friends, stories & reactions' },
+  ];
+
+  return (
+    <div className="hidden lg:flex relative w-1/2 items-center justify-center overflow-hidden bg-gradient-to-br from-brand-600 via-brand-800 to-[#050a1a] p-16">
+      {/* Ambient pulse glows */}
+      <motion.div
+        className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/10 blur-3xl"
+        animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.08, 1] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-brand-400/20 blur-3xl"
+        animate={{ opacity: [0.25, 0.5, 0.25], scale: [1, 1.1, 1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+      />
+      {/* Faint grid texture */}
+      <div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
+          backgroundSize: '42px 42px',
+        }}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, x: -24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 max-w-md"
+      >
+        <Logo size={60} className="mb-9" />
+        <h1 className="text-4xl font-black leading-tight text-white mb-4">
+          Stay close to<br />what matters.
+        </h1>
+        <p className="text-lg text-white/75 leading-relaxed mb-10">
+          Real-time feeds, instant messaging and live notifications — PulseConnect keeps
+          you in sync with your people, the moment it happens.
+        </p>
+        <ul className="space-y-4">
+          {features.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-center gap-3 text-white/90">
+              <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
+                <Icon size={16} />
+              </span>
+              <span className="text-sm font-medium">{text}</span>
+            </li>
+          ))}
+        </ul>
+      </motion.div>
     </div>
   );
 }
@@ -96,21 +183,35 @@ export function LoginPage() {
     }
   }, [email, password, login, setAuth, navigate]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-surface-dark flex items-center justify-center px-4">
-      <div className="w-full max-w-4xl grid md:grid-cols-2 gap-12 items-center">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <div className="w-16 h-16 bg-brand-500 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-6 select-none">
-            S
-          </div>
-          <h1 className="text-5xl font-black text-brand-500 mb-4 leading-tight">PluseConnect</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed">
-            Connect with friends and the world around you on PluseConnect.
-          </p>
-        </motion.div>
+  const fillDemoCredentials = useCallback(() => {
+    setEmail('demo@example.com');
+    setPassword('password123');
+  }, []);
 
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-          <div className="bg-white dark:bg-surface-dark-2 rounded-2xl shadow-xl p-8">
+  return (
+    <div className="min-h-screen flex bg-gray-50 dark:bg-[#0b0e14] transition-colors">
+      <ThemeToggle />
+      <BrandPanel />
+
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md"
+        >
+          <div className="flex lg:hidden justify-center mb-8">
+            <Logo size={48} withWordmark />
+          </div>
+
+          <div className="hidden lg:block mb-8">
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome back</h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
+              Log in to continue to PulseConnect.
+            </p>
+          </div>
+
+          <div className="bg-white/95 dark:bg-surface-dark-2/95 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 dark:shadow-black/40 border border-gray-100 dark:border-white/5 p-8">
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               {error && (
                 <div role="alert" className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
@@ -119,24 +220,32 @@ export function LoginPage() {
               )}
               <InputField
                 label="Email" type="email" value={email} onChange={setEmail}
-                placeholder="your@email.com" autoComplete="email" required
+                placeholder="your@email.com" autoComplete="email" required icon={Mail}
               />
               <InputField
                 label="Password" type="password" value={password} onChange={setPassword}
-                placeholder="••••••••" autoComplete="current-password" required
+                placeholder="••••••••" autoComplete="current-password" required icon={Lock}
               />
               <button
                 type="submit"
                 disabled={loading || !email || !password}
-                className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25"
               >
-                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
                 Log In
               </button>
               <button type="button" className="w-full text-sm text-brand-500 hover:underline text-center py-1">
                 Forgot password?
               </button>
             </form>
+
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 transition-colors"
+            >
+              <Sparkles size={13} /> Fill demo credentials
+            </button>
 
             <div className="my-5 flex items-center gap-3">
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
@@ -151,6 +260,10 @@ export function LoginPage() {
               Create New Account
             </Link>
           </div>
+
+          <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">
+            By continuing, you agree to our Terms and Privacy Policy.
+          </p>
         </motion.div>
       </div>
     </div>
@@ -231,19 +344,22 @@ export function RegisterPage() {
   }, [form, register, setAuth, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-surface-dark flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+      <ThemeToggle />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto mb-3 select-none">S</div>
+          <div className="flex justify-center mb-4">
+            <Logo size={52} />
+          </div>
           <h1 className="text-3xl font-black text-gray-900 dark:text-white">Create Account</h1>
-          <p className="text-gray-500 mt-1 text-sm">It's quick and easy.</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">It's quick and easy.</p>
         </div>
 
-        <div className="bg-white dark:bg-surface-dark-2 rounded-2xl shadow-xl p-8">
+        <div className="bg-white/95 dark:bg-surface-dark-2/95 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 dark:shadow-black/40 border border-gray-100 dark:border-white/5 p-8">
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {errors.general && (
               <div role="alert" className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
@@ -260,11 +376,11 @@ export function RegisterPage() {
             <InputField label="Username" value={form.username} onChange={update('username')}
               placeholder="johndoe" error={errors.username} autoComplete="username" required />
             <InputField label="Email" type="email" value={form.email} onChange={update('email')}
-              placeholder="john@example.com" error={errors.email} autoComplete="email" required />
+              placeholder="john@example.com" error={errors.email} autoComplete="email" required icon={Mail} />
             <InputField label="Password" type="password" value={form.password} onChange={update('password')}
-              placeholder="Min. 8 characters" error={errors.password} autoComplete="new-password" required />
+              placeholder="Min. 8 characters" error={errors.password} autoComplete="new-password" required icon={Lock} />
             <InputField label="Confirm password" type="password" value={form.confirmPassword} onChange={update('confirmPassword')}
-              placeholder="Repeat password" error={errors.confirmPassword} autoComplete="new-password" required />
+              placeholder="Repeat password" error={errors.confirmPassword} autoComplete="new-password" required icon={Lock} />
 
             <p className="text-xs text-gray-400 leading-relaxed">
               By signing up, you agree to our{' '}

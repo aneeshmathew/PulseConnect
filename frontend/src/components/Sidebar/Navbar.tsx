@@ -14,6 +14,7 @@ import {
 } from '@/lib/graphql';
 import { subscriptionsEnabled } from '@/lib/apollo';
 import { Avatar } from '@/components/UI/Avatar';
+import { Logo } from '@/components/UI/Logo';
 import { useAuthStore, useNotificationStore } from '@/store';
 import { timeAgo, cn } from '@/utils';
 import toast from 'react-hot-toast';
@@ -219,9 +220,7 @@ export function Navbar() {
     >
       {/* ── Logo ─────────────────────────────────── */}
       <Link to="/" aria-label="Home" className="flex-shrink-0">
-        <div className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center text-white font-black text-xl select-none">
-          S
-        </div>
+        <Logo size={38} />
       </Link>
 
       {/* ── Search (tablet/desktop: inline box, ≥sm) ── */}

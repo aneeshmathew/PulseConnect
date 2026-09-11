@@ -99,7 +99,9 @@ export const useUIStore = create<UIState>()(
   devtools(
     persist(
       (set) => ({
-        darkMode: window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false,
+        // PulseConnect defaults to dark mode regardless of system preference.
+        // Returning users still get whatever they last chose, via `persist` below.
+        darkMode: true,
         sidebarOpen: true,
         chatOpen: false,
         activeChatId: null,
