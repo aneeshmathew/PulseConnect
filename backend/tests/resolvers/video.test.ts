@@ -393,7 +393,12 @@ describe('userVideos — visibility scoping', () => {
     const author = await createUser({ username: 'vis_author' });
     const friend = await createUser({ username: 'vis_friend' });
     const stranger = await createUser({ username: 'vis_stranger' });
-    await User.findByIdAndUpdate(author._id, { $set: { friends: [friend._id] } });
+    // Friendship is symmetric in this app (acceptFriendRequest updates both
+    // users' `friends` arrays) — the resolver checks the *viewer's* own
+    // friends list, so the fixture needs both sides set, not just the
+    // author's.
+    await User.findByIdAndUpdate(author._id, { $addToSet: { friends: friend._id } });
+    await User.findByIdAndUpdate(friend._id, { $addToSet: { friends: author._id } });
 
     await createVideo(author, { caption: 'public', visibility: 'PUBLIC' });
     await createVideo(author, { caption: 'friends', visibility: 'FRIENDS' });

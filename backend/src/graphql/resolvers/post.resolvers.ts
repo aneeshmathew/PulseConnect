@@ -269,15 +269,24 @@ export const postResolvers = {
       }
       await post.save();
 
+      // Notify post author. Awaited for the same reason as
+      // createComment's notification (see other.resolvers.ts) — this is
+      // read back immediately (by callers/tests and the recipient's live
+      // notification feed), so fire-and-forget here is a real race, not
+      // just a theoretical one.
       if (isNew && (post.author as any)._id.toString() !== user._id.toString()) {
-        Notification.create({
-          recipient: (post.author as any)._id,
-          sender: user._id,
-          type: 'POST_LIKE',
-          entityId: post._id,
-          entityType: 'post',
-          message: `${user.firstName} ${user.lastName} reacted to your post`,
-        }).catch(console.error);
+        try {
+          await Notification.create({
+            recipient: (post.author as any)._id,
+            sender: user._id,
+            type: 'POST_LIKE',
+            entityId: post._id,
+            entityType: 'post',
+            message: `${user.firstName} ${user.lastName} reacted to your post`,
+          });
+        } catch (err) {
+          console.error(err);
+        }
       }
 
       await post.populate('author', '-password');

@@ -56,18 +56,27 @@ export const commentResolvers = {
       await comment.populate('author', '-password');
       pubsub.publish(EVENTS.NEW_COMMENT, { newComment: comment.toObject() });
 
-      // Notify post author (fire-and-forget)
+      // Notify post author. Awaited (unlike the parent-array $push above,
+      // which is fine to leave in-flight since nothing reads it back
+      // immediately) — the notification is user-visible and read back
+      // right away both by callers/tests and by the recipient's live
+      // notification feed, so it needs to actually exist before this
+      // resolver returns, matching the same pattern user.resolvers.ts
+      // already uses for friend-request notifications.
       if ((post as any).author.toString() !== user._id.toString()) {
-        Notification.create({
-          recipient: (post as any).author,
-          sender: user._id,
-          type: parentCommentId ? 'COMMENT_REPLY' : 'POST_COMMENT',
-          entityId: postId,
-          entityType: 'post',
-          message: `${user.firstName} ${user.lastName} ${parentCommentId ? 'replied to a comment' : 'commented on your post'}`,
-        })
-          .then((notif) => pubsub.publish(EVENTS.NEW_NOTIFICATION, { newNotification: notif }))
-          .catch(console.error);
+        try {
+          const notif = await Notification.create({
+            recipient: (post as any).author,
+            sender: user._id,
+            type: parentCommentId ? 'COMMENT_REPLY' : 'POST_COMMENT',
+            entityId: postId,
+            entityType: 'post',
+            message: `${user.firstName} ${user.lastName} ${parentCommentId ? 'replied to a comment' : 'commented on your post'}`,
+          });
+          pubsub.publish(EVENTS.NEW_NOTIFICATION, { newNotification: notif });
+        } catch (err) {
+          console.error(err);
+        }
       }
 
       return comment;
@@ -333,10 +342,20 @@ export const storyResolvers = {
         (v: any) => v.user.toString() === user._id.toString()
       );
     },
-    // StoryMedia.type is String! so no enum issue — keep lowercase
+    // StoryMedia.type is String! so no enum issue — keep lowercase. Return
+    // explicit fields rather than `{ ...parent.media }`: Mongoose exposes
+    // subdocument fields via getters on the prototype, not as the
+    // instance's own enumerable properties, so spreading a Mongoose
+    // subdocument silently drops every field (url included) — which is
+    // exactly what was making StoryMedia.url come back null.
     media: (parent: any) => {
-      if (!parent.media) return null;
-      return { ...parent.media, type: (parent.media.type ?? 'image').toLowerCase() };
+      if (!parent.media || !parent.media.url) return null;
+      return {
+        url: parent.media.url,
+        type: (parent.media.type ?? 'image').toLowerCase(),
+        duration: parent.media.duration,
+        thumbnail: parent.media.thumbnail,
+      };
     },
   },
 };
