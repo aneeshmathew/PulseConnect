@@ -4,7 +4,6 @@
   "private": true,
   "workspaces": ["backend", "frontend", "shared"],
   "scripts": {
-    "setup": "npm install && npm install --workspace=backend && npm install --workspace=frontend",
     "seed": "npm run seed --workspace=backend",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --workspace=backend",

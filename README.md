@@ -143,7 +143,7 @@ pluseconnect/
 ```bash
 git clone <repo>
 cd pluseconnect
-npm run setup
+npm install
 ```
 
 ### 2. Configure Environment

@@ -12,5 +12,10 @@ export default defineConfig({
     // running files in parallel would race those wipes against each
     // other's assertions, so keep it sequential.
     fileParallelism: false,
+    server: {
+      deps: {
+        inline: [/graphql/],
+      },
+    },
   },
 });
