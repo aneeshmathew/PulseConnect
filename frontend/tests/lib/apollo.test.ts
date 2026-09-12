@@ -22,17 +22,27 @@ let originalLocation: Location;
 beforeEach(() => {
   localStorage.clear();
   originalLocation = window.location;
-  // jsdom's window.location isn't directly reassignable in place — delete
-  // and replace it with a plain object carrying the bits errorLink reads
-  // (`pathname`) and the one it calls (`replace`), spread over the
-  // original so anything else (hostname, protocol) stays realistic.
-  // @ts-expect-error -- intentionally replacing a normally-immutable global for this test
-  delete window.location;
-  window.location = { ...originalLocation, pathname: '/feed', replace: vi.fn() } as unknown as Location;
+  // jsdom's window.location isn't directly reassignable in place, and a
+  // plain `window.location = {...}` assignment trips a known TypeScript
+  // DOM-lib typing quirk (its setter type doesn't accept a plain object,
+  // no matter how it's cast) — Object.defineProperty sidesteps both
+  // problems at once. Spread the original so anything else (hostname,
+  // protocol) stays realistic; only pathname/replace are what errorLink
+  // actually reads/calls.
+  delete (window as any).location;
+  Object.defineProperty(window, 'location', {
+    value: { ...originalLocation, pathname: '/feed', replace: vi.fn() },
+    writable: true,
+    configurable: true,
+  });
 });
 
 afterEach(() => {
-  window.location = originalLocation;
+  Object.defineProperty(window, 'location', {
+    value: originalLocation,
+    writable: true,
+    configurable: true,
+  });
 });
 
 function terminatingLink(behavior: (observer: any) => void) {
