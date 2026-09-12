@@ -74,9 +74,13 @@ describe('SettingsPage', () => {
     renderSettings(mocks);
     await screen.findByText('Privacy');
 
-    fireEvent.click(screen.getByRole('button', { name: /only me/i }));
+    // "Only me" appears twice — once under profile visibility, once under
+    // posts visibility (same three options, rendered independently for
+    // each). The profile-visibility one is first in the DOM.
+    const profileOnlyMeBtn = screen.getAllByRole('button', { name: /only me/i })[0];
+    fireEvent.click(profileOnlyMeBtn);
     // Optimistic update happens synchronously; the ring highlight moves to "Only me".
-    expect(screen.getByRole('button', { name: /only me/i })).toHaveClass('ring-brand-500');
+    expect(profileOnlyMeBtn).toHaveClass('ring-brand-500');
   });
 
   it('reverts a notification toggle and shows an error if the mutation fails', async () => {

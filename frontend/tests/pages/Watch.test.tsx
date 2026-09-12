@@ -37,7 +37,29 @@ beforeEach(() => {
 });
 
 function makeVideo(id: string, caption: string) {
-  return { id, caption, url: `https://example.com/${id}.mp4` };
+  return {
+    __typename: 'Video',
+    id,
+    url: `https://example.com/${id}.mp4`,
+    thumbnail: null,
+    caption,
+    duration: 30,
+    width: 1080,
+    height: 1920,
+    visibility: 'PUBLIC',
+    reactionSummary: [],
+    myReaction: null,
+    reactionsCount: 0,
+    commentsCount: 0,
+    comments: [],
+    sharesCount: 0,
+    viewCount: 0,
+    createdAt: new Date().toISOString(),
+    author: {
+      __typename: 'User', id: 'author1', username: 'author', firstName: 'Author', lastName: 'One',
+      fullName: 'Author One', avatar: null, isOnline: false, isVerified: false, isFriend: false, friendsCount: 0,
+    },
+  };
 }
 
 function renderWatch(mocks: any[]) {

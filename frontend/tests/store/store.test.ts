@@ -5,7 +5,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // keeps these tests focused on store state transitions rather than
 // dragging in the real ApolloClient/graphql-ws construction (see
 // tests/lib/apollo.test.ts for that side of things).
-const clearStore = vi.fn().mockResolvedValue(undefined);
+//
+// `vi.mock` factories are hoisted above every other top-level statement in
+// this file, including `const` declarations — so a plain
+// `const clearStore = vi.fn(); vi.mock(..., () => ({ clearStore }))` reads
+// `clearStore` before it's ever assigned (a TDZ error). `vi.hoisted` is
+// hoisted together with `vi.mock`, in the same order, specifically so
+// values can be shared between them safely.
+const { clearStore } = vi.hoisted(() => ({
+  clearStore: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/lib/apollo', () => ({
   client: { clearStore },
 }));

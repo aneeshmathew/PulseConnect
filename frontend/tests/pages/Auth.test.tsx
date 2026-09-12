@@ -17,6 +17,10 @@ vi.mock('react-router-dom', async (importOriginal) => {
 const setAuthMock = vi.fn();
 vi.mock('@/store', () => ({
   useAuthStore: () => ({ setAuth: setAuthMock }),
+  // Added when the login page grew a light/dark theme toggle — Auth.tsx
+  // now calls useUIStore() too, so it needs a mock even though this file
+  // doesn't test the toggle itself.
+  useUIStore: () => ({ darkMode: true, toggleDarkMode: vi.fn() }),
 }));
 
 const toastSuccess = vi.fn();

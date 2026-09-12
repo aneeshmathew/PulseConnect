@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { ProfilePage } from '@/pages/Profile';
@@ -105,10 +105,10 @@ describe('ProfilePage', () => {
     renderProfile(mocks);
 
     expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /edit profile/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit profile$/i })).toBeInTheDocument();
     expect(await screen.findByText('Hello from Jane')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /edit profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^edit profile$/i }));
     expect(screen.getByRole('dialog', { name: /edit profile modal/i })).toBeInTheDocument();
   });
 
@@ -122,9 +122,14 @@ describe('ProfilePage', () => {
     renderProfile(mocks);
 
     fireEvent.click(await screen.findByRole('button', { name: 'About' }));
-    expect(await screen.findByText('Loves hiking')).toBeInTheDocument();
-    expect(screen.getByText('Dublin, CA')).toBeInTheDocument();
-    expect(screen.getByText('janedoe.dev')).toBeInTheDocument();
+    // Bio/location/website also show in the always-visible profile header,
+    // so scope these queries to the About tab's own section (identified by
+    // its "About" heading) rather than matching the header's copy too.
+    const aboutHeading = await screen.findByRole('heading', { name: 'About' });
+    const aboutSection = within(aboutHeading.closest('div') as HTMLElement);
+    expect(aboutSection.getByText('Loves hiking')).toBeInTheDocument();
+    expect(aboutSection.getByText('Dublin, CA')).toBeInTheDocument();
+    expect(aboutSection.getByText('janedoe.dev')).toBeInTheDocument();
   });
 
   it('shows "No friends to show" on the Friends tab when the list is empty', async () => {

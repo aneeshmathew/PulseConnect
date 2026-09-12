@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { InMemoryCache } from '@apollo/client';
 import { MockedProvider } from '@apollo/client/testing';
 import { Feed } from '@/components/Feed/Feed';
@@ -55,11 +55,15 @@ function makePost(id: string, content: string) {
     commentsCount: 0,
     sharesCount: 0,
     visibility: 'PUBLIC',
+    location: null,
+    feeling: null,
+    isPinned: false,
     isEdited: false,
+    viewCount: 0,
     createdAt: new Date().toISOString(),
     author: {
-      __typename: 'User', id: 'author1', username: 'author', fullName: 'Author',
-      avatar: null, isOnline: false, isVerified: false, isFriend: false, friendsCount: 0,
+      __typename: 'User', id: 'author1', username: 'author', firstName: 'Author', lastName: 'One',
+      fullName: 'Author One', avatar: null, isOnline: false, isVerified: false, isFriend: false, friendsCount: 0,
     },
   };
 }
@@ -115,7 +119,10 @@ describe('Feed', () => {
       { request: { query: GET_FEED, variables: { limit: 1 } }, result: { data: { feed: { posts: [], hasMore: false, nextCursor: null, total: 0 } } } },
     ];
     renderFeed(mocks);
-    expect(screen.getAllByLabelText('Loading post')).toHaveLength(15);
+    // The initial-load skeleton is a fixed block of 5, independent of LIMIT
+    // — it renders before the virtualizer (which needs real post data) ever
+    // gets involved.
+    expect(screen.getAllByLabelText('Loading post')).toHaveLength(5);
   });
 
   it('renders posts once loaded and shows the end-of-feed message when there is no more to load', async () => {
@@ -134,10 +141,18 @@ describe('Feed', () => {
   it('loads the next page via infinite scroll and appends it to the list', async () => {
     const page1 = [makePost('p1', 'First post')];
     const page2 = [makePost('p2', 'Second post')];
+    const mainPageResult = { result: { data: { feed: { posts: page1, hasMore: true, nextCursor: 'CURSOR1', total: 2 } } } };
+    const fetchMoreResult = { result: { data: { feed: { posts: page2, hasMore: false, nextCursor: null, total: 2 } } } };
     const mocks = [
-      { request: { query: GET_FEED, variables: { limit: 15 } }, result: { data: { feed: { posts: page1, hasMore: true, nextCursor: 'CURSOR1', total: 2 } } } },
+      // `feed` is cached with keyArgs: false (see makeCache above), so
+      // fetchMore's write into that shared slot can cause the main
+      // cache-and-network query to re-issue its own fetch once more —
+      // provide two of each so that either way, nothing runs out.
+      { request: { query: GET_FEED, variables: { limit: 15 } }, ...mainPageResult },
+      { request: { query: GET_FEED, variables: { limit: 15 } }, ...mainPageResult },
       { request: { query: GET_FEED, variables: { limit: 1 } }, result: { data: { feed: { posts: page1, hasMore: true, nextCursor: 'CURSOR1', total: 2 } } } },
-      { request: { query: GET_FEED, variables: { cursor: 'CURSOR1', limit: 15 } }, result: { data: { feed: { posts: page2, hasMore: false, nextCursor: null, total: 2 } } } },
+      { request: { query: GET_FEED, variables: { cursor: 'CURSOR1', limit: 15 } }, ...fetchMoreResult },
+      { request: { query: GET_FEED, variables: { cursor: 'CURSOR1', limit: 15 } }, ...fetchMoreResult },
     ];
     renderFeed(mocks);
 
@@ -165,7 +180,13 @@ describe('Feed', () => {
     expect(banner).toBeInTheDocument();
 
     fireEvent.click(banner);
-    expect(screen.queryByText(/new posts — tap to refresh/i)).not.toBeInTheDocument();
+    // The banner is wrapped in AnimatePresence with an exit animation, so
+    // it doesn't leave the DOM the instant hasNewPosts flips to false —
+    // wait for the exit transition to finish instead of asserting
+    // synchronously.
+    await waitFor(() => {
+      expect(screen.queryByText(/new posts — tap to refresh/i)).not.toBeInTheDocument();
+    });
     expect(await screen.findByText('Brand new post')).toBeInTheDocument();
   });
 });

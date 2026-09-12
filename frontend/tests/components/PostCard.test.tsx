@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { PostCard } from '@/components/Post/PostCard';
@@ -87,7 +87,7 @@ describe('PostCard — reaction picker hover timing', () => {
     expect(screen.getByRole('dialog', { name: /reaction picker/i })).toBeInTheDocument();
   });
 
-  it('closes ~400ms after the pointer leaves the picker itself', () => {
+  it('closes ~400ms after the pointer leaves the picker itself', async () => {
     renderPostCard();
     const likeButton = screen.getByRole('button', { name: /like/i });
 
@@ -103,7 +103,12 @@ describe('PostCard — reaction picker hover timing', () => {
       vi.advanceTimersByTime(400);
     });
 
-    expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
+    // The picker is wrapped in AnimatePresence, so it doesn't leave the DOM
+    // the instant showReactions flips to false — testing-library's waitFor
+    // auto-detects active fake timers and polls accordingly.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
+    });
   });
 
   it('clicking an emoji in the picker sends that reaction and closes the picker', async () => {
@@ -126,7 +131,11 @@ describe('PostCard — reaction picker hover timing', () => {
     fireEvent.click(within(picker).getByRole('button', { name: 'LOVE' }));
 
     // The picker closes immediately on click (handleReact sets
-    // showReactions false synchronously, before the mutation resolves).
-    expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
+    // showReactions false synchronously, before the mutation resolves) —
+    // but it's wrapped in AnimatePresence, so its removal from the DOM
+    // still trails the state change by the exit animation.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
+    });
   });
 });
