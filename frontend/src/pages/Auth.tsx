@@ -205,7 +205,7 @@ export function LoginPage() {
           </div>
 
           <div className="hidden lg:block mb-8">
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome back</h2>
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome!</h2>
             <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
               Log in to continue to PulseConnect.
             </p>
