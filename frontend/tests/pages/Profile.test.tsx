@@ -97,7 +97,25 @@ describe('ProfilePage', () => {
   it('renders the Posts tab by default and shows "Edit profile" for the profile owner', async () => {
     currentUser = { id: 'user1' }; // owner === profile
     const user = baseUser();
-    const posts = [{ id: 'post1', content: 'Hello from Jane' }];
+    const posts = [{
+      __typename: 'Post',
+      id: 'post1',
+      content: 'Hello from Jane',
+      media: [],
+      reactionSummary: [],
+      myReaction: null,
+      isSaved: false,
+      commentsCount: 0,
+      sharesCount: 0,
+      visibility: 'PUBLIC',
+      location: null,
+      feeling: null,
+      isPinned: false,
+      isEdited: false,
+      viewCount: 0,
+      createdAt: new Date().toISOString(),
+      author: { __typename: 'User', ...user, id: user.id },
+    }];
     const mocks = [
       { request: { query: GET_USER, variables: { username: 'janedoe' } }, result: { data: { user } } },
       userPostsMock('user1', posts),

@@ -33,8 +33,17 @@ function InputField({ label, type = 'text', value, onChange, placeholder, error,
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      <label
+        htmlFor={id}
+        className={cn(
+          'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1',
+          // The asterisk is CSS-generated content, not a text-node sibling,
+          // so it doesn't change the label's textContent — getByLabelText
+          // matches on exact text content, and "Email*" wouldn't match "Email".
+          required && "after:content-['*'] after:text-red-500 after:ml-0.5"
+        )}
+      >
+        {label}
       </label>
       <div className="relative">
         {Icon && (
@@ -205,7 +214,7 @@ export function LoginPage() {
           </div>
 
           <div className="hidden lg:block mb-8">
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome!</h2>
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome back</h2>
             <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
               Log in to continue to PulseConnect.
             </p>

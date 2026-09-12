@@ -1,9 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
+import React from 'react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { PostCard } from '@/components/Post/PostCard';
 import { REACT_TO_POST } from '@/lib/graphql';
+
+// The reaction picker is wrapped in AnimatePresence, whose exit animation
+// runs on framer-motion's own internal timing (not a setTimeout this
+// suite's fake timers can drive forward), so DOM removal would otherwise
+// trail the showReactions state change unpredictably. Mocking it to a
+// plain conditional render keeps these tests focused on PostCard's own
+// hover-timing logic rather than framer-motion's animation lifecycle.
+vi.mock('framer-motion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('framer-motion')>();
+  return {
+    ...actual,
+    AnimatePresence: ({ children }: any) => <>{children}</>,
+    motion: new Proxy({} as Record<string, any>, {
+      get: (_target, tag: string) =>
+        React.forwardRef((props: any, ref: any) => {
+          const { initial, animate, exit, transition, whileHover, whileTap, layout, ...rest } = props;
+          return React.createElement(tag, { ...rest, ref });
+        }),
+    }),
+  };
+});
 
 // Regression coverage for DEVELOPMENT.md's changelog 2026-08-23 (5): the
 // reaction picker used to close (via the Like button's onMouseLeave)
@@ -103,12 +125,7 @@ describe('PostCard — reaction picker hover timing', () => {
       vi.advanceTimersByTime(400);
     });
 
-    // The picker is wrapped in AnimatePresence, so it doesn't leave the DOM
-    // the instant showReactions flips to false — testing-library's waitFor
-    // auto-detects active fake timers and polls accordingly.
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
-    });
+    expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
   });
 
   it('clicking an emoji in the picker sends that reaction and closes the picker', async () => {
@@ -131,11 +148,7 @@ describe('PostCard — reaction picker hover timing', () => {
     fireEvent.click(within(picker).getByRole('button', { name: 'LOVE' }));
 
     // The picker closes immediately on click (handleReact sets
-    // showReactions false synchronously, before the mutation resolves) —
-    // but it's wrapped in AnimatePresence, so its removal from the DOM
-    // still trails the state change by the exit animation.
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
-    });
+    // showReactions false synchronously, before the mutation resolves).
+    expect(screen.queryByRole('dialog', { name: /reaction picker/i })).not.toBeInTheDocument();
   });
 });

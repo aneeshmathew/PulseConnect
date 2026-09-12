@@ -14,7 +14,7 @@ export default defineConfig({
     fileParallelism: false,
     server: {
       deps: {
-        inline: [/graphql/],
+       inline: [/graphql/],
       },
     },
   },
