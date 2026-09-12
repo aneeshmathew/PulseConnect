@@ -14,11 +14,11 @@ PulseConnect is a full-stack Socialbook-style social network (React + TypeScript
 | Marketplace | ❌ Not started — nav link + placeholder page only |
 | Events | ❌ Not started — nav link + placeholder page only |
 | Real-time in production (Vercel) | ⚠️ Degraded by design — see §4 |
-| Automated test suite | 🟡 In progress — backend coverage complete for all resolver groups (incl. video/Watch). Frontend covers CommentSection, useConversationChat, PostCard, Auth, stores, apollo.ts; Feed/Profile/Watch(page)/Settings still untested. CI wiring intentionally out of scope. See §3 |
+| Automated test suite | 🟡 In progress — backend coverage complete for all resolver groups (incl. video/Watch). Frontend now also covers Feed, Profile, Watch(page), and Settings, on top of CommentSection, useConversationChat, PostCard, Auth, stores, apollo.ts. CI wiring intentionally out of scope. See §3 |
 | Vercel Node.js runtime | ✅ Verified — running 24.x (≥20 required by Apollo Server 5) |
 | Production build (chunk-size fix) | ✅ Verified — confirmed clean |
 
-**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, the backend resolver test suite is now complete (including a real pagination bug found and fixed along the way), and frontend coverage spans the highest-value components/pages/logic with Feed/Profile/Watch(page)/Settings remaining (2026-09-10).
+**In one sentence:** everything a user can currently navigate to either works for real or clearly says "Coming Soon" — there are no silently-broken or fake/decorative features left in the app as of the last review pass (2026-09-07); both outstanding deploy risks have since been confirmed clear, the backend resolver test suite is now complete (including a real pagination bug found and fixed along the way), and frontend coverage now spans Feed/Profile/Watch(page)/Settings on top of the highest-value components/pages/logic already covered (2026-09-11).
 
 ---
 
@@ -116,7 +116,10 @@ Each item below reflects a real GraphQL resolver + MongoDB model + working front
   - [x] `Auth` page (`tests/pages/Auth.test.tsx`) — `LoginPage` (email trim/lowercase, server-error display, submit-button disabled state) and `RegisterPage`'s client-side `validateForm` (empty-form errors, the overlapping-password-rules overwrite behavior, mismatched passwords, invalid username characters, per-field error-clear-on-edit, and a full valid submission).
   - [x] Zustand stores (`tests/store/store.test.ts`) — `useAuthStore` (setAuth/setUser/logout, including the Apollo cache being cleared on logout), `useUIStore` (dark mode toggling the document root class, sidebar, the open/pending-recipient chat state machine), `useNotificationStore`.
   - [x] `apollo.ts` (`tests/lib/apollo.test.ts`) — `errorLink` (the exact fix in §7's 2026-09-07 (1) entry: both `token` and `auth-storage` cleared together on `UNAUTHENTICATED`, the already-on-`/login` guard, non-auth GraphQL errors left alone, and the connection-failure-vs-ordinary-HTTP-error distinction for network errors) and the `feed`/`messages` cache `merge` functions (append + de-dupe by ref, `messages` scoped per `conversationId`), exercised through the real `writeQuery`/`readQuery` cache API. `errorLink` was made an export (previously module-private) purely so it could be imported here — no behavior change.
-  - [ ] **Not yet covered — remaining frontend gap:** the Feed page/list container itself (as opposed to `PostCard`, which is covered), Profile, Watch (the frontend page — the backend video resolvers it calls are now fully covered), and Settings.
+  - [x] `Feed` container (`tests/components/Feed.test.tsx`) — the list/container logic itself, not `PostCard` (already covered): initial-load skeletons, rendering a loaded page plus the "end of feed" message, infinite-scroll `fetchMore` actually appending a second page (exercised through a real `InMemoryCache` mirroring the app's `feed` merge policy, not a shallow mock), and the new-post subscription banner appearing + clearing on refresh. `PostCard`/`CreatePost`/`StoriesBar` and `@tanstack/react-virtual` itself are stubbed since none of them are what this file is testing.
+  - [x] `ProfilePage` (`tests/pages/Profile.test.tsx`) — loading skeleton, the "user not found" state, the default Posts tab (incl. owner-only "Edit profile"), the About/Friends tabs, and a visitor sending a friend request through `SEND_FRIEND_REQUEST` (button disables and relabels once sent). `AppLayout`, `PostCard`, and `EditProfileModal` are stubbed to isolate Profile's own tab/data logic from the shared authenticated shell.
+  - [x] `WatchPage` (`tests/pages/Watch.test.tsx`) — loading placeholder, the empty state, rendering a loaded video list with the first video marked active, and opening/closing the upload modal. `AppLayout`, `VideoCard`, and `CreateVideoModal` are stubbed; jsdom's missing `IntersectionObserver` is polyfilled with a no-op stub since WatchPage constructs one on mount.
+  - [x] `SettingsPage` (`tests/pages/Settings.test.tsx`) — loading state, rendering fetched privacy/notification settings, optimistic privacy-visibility updates, a notification toggle reverting on mutation failure, the dark-mode toggle, the password-change form's disabled-until-filled state and successful submission (form clears), and logout navigating to `/login`.
   - **Could not run in this environment**, same reason as the backend suite — reviewed by hand; run `npm install && npm test` from `frontend/` to execute for real.
 
 ---
@@ -155,6 +158,7 @@ One line per fix/addition, newest first, since 2026-08-21. Kept short on purpose
 
 | # | Date | Issue | Status |
 |---|------|-------|--------|
+| 2026-09-11 (2) | Sep 11 | Closed the remaining frontend test-coverage gap: Feed container, ProfilePage, WatchPage, SettingsPage | ✅ Added |
 | 2026-09-11 (1) | Sep 11 | Root `package.json` (workspaces monorepo) had no `test` script — each workspace's own `npm test` worked, but `npm test` from the repo root did nothing | ✅ Fixed |
 | 2026-09-10 (6) | Sep 10 | Expanded frontend test suite further: PostCard reaction picker, Auth pages, zustand stores, apollo.ts errorLink + cache merge | ✅ Added |
 | 2026-09-10 (5) | Sep 10 | Backend video/Watch test coverage; found and fixed a pagination bug that could silently truncate the feed when a deleted account's video was in the fetch window | ✅ Added / Fixed |
