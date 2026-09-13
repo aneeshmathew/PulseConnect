@@ -12,6 +12,9 @@ export const typeDefs = gql`
   }
   enum MediaType { IMAGE VIDEO GIF }
   enum RsvpStatus { GOING INTERESTED DECLINED }
+  enum ListingCategory { ELECTRONICS VEHICLES HOME_GARDEN CLOTHING FURNITURE TOYS_GAMES OTHER }
+  enum ListingCondition { NEW LIKE_NEW GOOD FAIR }
+  enum ListingStatus { ACTIVE SOLD }
 
   # ─── Types ────────────────────────────────────────────────────────────────
   type User {
@@ -237,6 +240,28 @@ export const typeDefs = gql`
     nextCursor: String
   }
 
+  # ─── Marketplace ─────────────────────────────────────────────────────────
+  type MarketplaceListing {
+    id: ID!
+    seller: User!
+    title: String!
+    description: String!
+    price: Float!
+    category: ListingCategory!
+    condition: ListingCondition!
+    images: [String!]!
+    location: String
+    status: ListingStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type MarketplaceConnection {
+    listings: [MarketplaceListing!]!
+    hasMore: Boolean!
+    nextCursor: String
+  }
+
   type Message {
     id: ID!
     conversation: Conversation!
@@ -364,6 +389,11 @@ export const typeDefs = gql`
     event(id: ID!): Event
     userEvents(userId: ID!, cursor: String, limit: Int): EventConnection!
 
+    # Marketplace
+    marketplaceListings(category: ListingCategory, cursor: String, limit: Int): MarketplaceConnection!
+    marketplaceListing(id: ID!): MarketplaceListing
+    userListings(userId: ID!, cursor: String, limit: Int): MarketplaceConnection!
+
     # Notifications
     notifications(limit: Int, offset: Int): [Notification!]!
     unreadNotificationsCount: Int!
@@ -443,6 +473,13 @@ export const typeDefs = gql`
     deleteEvent(id: ID!): Boolean!
     rsvpToEvent(eventId: ID!, status: RsvpStatus!): Event!
     cancelRsvp(eventId: ID!): Event!
+
+    # Marketplace
+    createListing(input: CreateListingInput!): MarketplaceListing!
+    updateListing(id: ID!, input: UpdateListingInput!): MarketplaceListing!
+    deleteListing(id: ID!): Boolean!
+    markListingSold(id: ID!): MarketplaceListing!
+    relistListing(id: ID!): MarketplaceListing!
 
     # Notifications
     markNotificationRead(id: ID!): Notification!
@@ -581,6 +618,26 @@ export const typeDefs = gql`
     startAt: DateTime
     endAt: DateTime
     visibility: Visibility
+  }
+
+  input CreateListingInput {
+    title: String!
+    description: String!
+    price: Float!
+    category: ListingCategory!
+    condition: ListingCondition!
+    images: [String!]!
+    location: String
+  }
+
+  input UpdateListingInput {
+    title: String
+    description: String
+    price: Float
+    category: ListingCategory
+    condition: ListingCondition
+    images: [String!]
+    location: String
   }
 
   input SendMessageInput {

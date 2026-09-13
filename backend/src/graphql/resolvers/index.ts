@@ -8,6 +8,7 @@ import { subscriptionResolvers } from './subscription.resolvers';
 import { commentResolvers, notificationResolvers, storyResolvers } from './other.resolvers';
 import { videoResolvers } from './video.resolvers';
 import { eventResolvers } from './event.resolvers';
+import { marketplaceResolvers } from './marketplace.resolvers';
 
 // ── DateTime scalar ────────────────────────────────────────────────────────────
 const dateTimeScalar = new GraphQLScalarType({
@@ -54,4 +55,5 @@ export const resolvers = mergeResolvers([
   storyResolvers,
   videoResolvers,
   eventResolvers,
+  marketplaceResolvers,
 ]) as any;

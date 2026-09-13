@@ -80,6 +80,26 @@ export const UpdateEventSchema = z.object({
   path: ['endAt'],
 });
 
+export const CreateListingSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().min(1, 'Description is required').max(5000),
+  price: z.number().min(0, 'Price cannot be negative'),
+  category: z.enum(['ELECTRONICS', 'VEHICLES', 'HOME_GARDEN', 'CLOTHING', 'FURNITURE', 'TOYS_GAMES', 'OTHER']),
+  condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']),
+  images: z.array(z.string().url()).min(1, 'At least one photo is required').max(10, 'Up to 10 photos'),
+  location: z.string().max(300).optional(),
+});
+
+export const UpdateListingSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().min(1).max(5000).optional(),
+  price: z.number().min(0).optional(),
+  category: z.enum(['ELECTRONICS', 'VEHICLES', 'HOME_GARDEN', 'CLOTHING', 'FURNITURE', 'TOYS_GAMES', 'OTHER']).optional(),
+  condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']).optional(),
+  images: z.array(z.string().url()).min(1).max(10).optional(),
+  location: z.string().max(300).optional(),
+});
+
 export const CreateCommentSchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(8000),

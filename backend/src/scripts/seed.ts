@@ -7,6 +7,7 @@ import { Story } from '../models/Story';
 import { Conversation, Message } from '../models/Message';
 import { Video } from '../models/Video';
 import { Event } from '../models/Event';
+import { MarketplaceListing } from '../models/MarketplaceListing';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 
@@ -211,7 +212,7 @@ async function seed() {
   await Promise.all([
     User.deleteMany({}), Post.deleteMany({}), Comment.deleteMany({}),
     Story.deleteMany({}), Conversation.deleteMany({}), Message.deleteMany({}),
-    Video.deleteMany({}), Event.deleteMany({}),
+    Video.deleteMany({}), Event.deleteMany({}), MarketplaceListing.deleteMany({}),
   ]);
   console.log('🧹 Cleared all existing data');
 
@@ -456,6 +457,39 @@ async function seed() {
   }
   console.log(`📅 Created ${eventDocs.length} events`);
 
+  // ── Marketplace ──────────────────────────────────────────────────────────
+  // Listing photos reuse the existing IMAGES pool for the same reason as
+  // Events' cover images above — known-good hosted URLs, not a fresh
+  // hotlink target.
+  const LISTING_DEFS = [
+    { title: 'Mountain Bike, barely used', description: 'Great condition, upgraded brakes. Selling because I moved.', price: 350, category: 'OTHER', condition: 'LIKE_NEW', location: 'Denver, CO' },
+    { title: 'Vintage Leather Sofa', description: 'Solid wood frame, some wear on the arms but very comfortable.', price: 220, category: 'FURNITURE', condition: 'GOOD', location: 'Austin, TX' },
+    { title: 'iPhone 13, unlocked', description: '128GB, battery health 89%. Comes with original box and charger.', price: 400, category: 'ELECTRONICS', condition: 'GOOD', location: 'San Francisco, CA' },
+    { title: "Kids' Winter Coat Bundle (size 6-7)", description: '3 coats, all in great shape, outgrown quickly.', price: 25, category: 'CLOTHING', condition: 'GOOD', location: 'Chicago, IL' },
+    { title: 'Standing Desk, electric', description: 'Dual motor, memory presets. Selling as I switched jobs and no longer WFH.', price: 180, category: 'HOME_GARDEN', condition: 'LIKE_NEW', location: 'Nashville, TN' },
+    { title: '2015 Honda Civic', description: '92k miles, clean title, well maintained, new tires last year.', price: 8900, category: 'VEHICLES', condition: 'GOOD', location: 'Los Angeles, CA' },
+  ];
+
+  const listingDocs: any[] = [];
+  for (let i = 0; i < LISTING_DEFS.length; i++) {
+    const def = LISTING_DEFS[i];
+    const seller = users[(i + 3) % users.length];
+    const listing = new MarketplaceListing({
+      seller: seller._id,
+      title: def.title,
+      description: def.description,
+      price: def.price,
+      category: def.category,
+      condition: def.condition,
+      location: def.location,
+      images: [IMAGES[i % IMAGES.length], IMAGES[(i + 1) % IMAGES.length]],
+      status: i === 0 ? 'SOLD' : 'ACTIVE', // one sold listing to exercise that state on first run
+    });
+    await listing.save();
+    listingDocs.push(listing);
+  }
+  console.log(`🛒 Created ${listingDocs.length} marketplace listings`);
+
   // ── 6. Sample conversation ────────────────────────────────────────────────
   const conv = await Conversation.create({
     participants: [demo._id, alice._id],
@@ -494,6 +528,7 @@ async function seed() {
   console.log(`  📸 Stories:       ${users.length}`);
   console.log(`  🎬 Videos:        ${videoDocs.length}`);
   console.log(`  📅 Events:        ${eventDocs.length}`);
+  console.log(`  🛒 Listings:      ${listingDocs.length}`);
   console.log(`  🤝 Friendships:   ${friendPairs.length}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  📧 Email:         demo@example.com');

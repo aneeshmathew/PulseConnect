@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client';
 import { Toaster } from 'react-hot-toast';
-import { Store, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { client } from '@/lib/apollo';
 import { useAuthStore } from '@/store';
 
@@ -22,7 +22,6 @@ const LoginPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.Lo
 const RegisterPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.RegisterPage })));
 const ProfilePage = lazy(() => import('@/pages/Profile').then((m) => ({ default: m.ProfilePage })));
 const MessagesPage = lazy(() => import('@/pages/Messages').then((m) => ({ default: m.MessagesPage })));
-const ComingSoonPage = lazy(() => import('@/pages/ComingSoon').then((m) => ({ default: m.ComingSoonPage })));
 const FriendsPage = lazy(() => import('@/pages/Friends').then((m) => ({ default: m.FriendsPage })));
 const PostDetailPage = lazy(() => import('@/pages/PostDetail').then((m) => ({ default: m.PostDetailPage })));
 const SavedPage = lazy(() => import('@/pages/Saved').then((m) => ({ default: m.SavedPage })));
@@ -30,6 +29,8 @@ const SettingsPage = lazy(() => import('@/pages/Settings').then((m) => ({ defaul
 const WatchPage = lazy(() => import('@/pages/Watch').then((m) => ({ default: m.WatchPage })));
 const EventsPage = lazy(() => import('@/pages/Events').then((m) => ({ default: m.EventsPage })));
 const EventDetailPage = lazy(() => import('@/pages/EventDetail').then((m) => ({ default: m.EventDetailPage })));
+const MarketplacePage = lazy(() => import('@/pages/Marketplace').then((m) => ({ default: m.MarketplacePage })));
+const ListingDetailPage = lazy(() => import('@/pages/ListingDetail').then((m) => ({ default: m.ListingDetailPage })));
 
 // Minimal, dependency-free fallback — shown only for the brief moment a
 // route chunk is being fetched (typically imperceptible on a warm cache),
@@ -67,9 +68,8 @@ export default function App() {
             <Route path="/friends" element={<PrivateRoute><FriendsPage /></PrivateRoute>} />
             <Route path="/post/:id" element={<PrivateRoute><PostDetailPage /></PrivateRoute>} />
             <Route path="/watch" element={<PrivateRoute><WatchPage /></PrivateRoute>} />
-            <Route path="/marketplace" element={<PrivateRoute>
-              <ComingSoonPage icon={Store} title="Marketplace" description="Buying and selling with your community is coming soon." />
-            </PrivateRoute>} />
+            <Route path="/marketplace" element={<PrivateRoute><MarketplacePage /></PrivateRoute>} />
+            <Route path="/listing/:id" element={<PrivateRoute><ListingDetailPage /></PrivateRoute>} />
             <Route path="/saved" element={<PrivateRoute><SavedPage /></PrivateRoute>} />
             <Route path="/events" element={<PrivateRoute><EventsPage /></PrivateRoute>} />
             <Route path="/event/:id" element={<PrivateRoute><EventDetailPage /></PrivateRoute>} />

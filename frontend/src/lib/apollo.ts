@@ -136,18 +136,22 @@ const activeLink: ApolloLink = subscriptionsEnabled
 
 // Shared merge policy for cursor-paginated connection-shaped fields
 // (`{ <listKey>: [...], hasMore, nextCursor }`) that fetchMore() calls
-// with only `{ cursor, limit }` variables, no other arguments that would
-// need to vary the cache key. `keyArgs: false` makes the field key
-// entirely arg-independent, and the merge dedupes by `__ref` before
+// with `{ cursor, limit }` variables (plus, optionally, one or more real
+// filter arguments that SHOULD scope the cache key — e.g. marketplace's
+// `category` — passed via `keyArgs`, same idea as `messages`'
+// `keyArgs: ['conversationId']` below). `cursor`/`limit` are always
+// excluded either way since fetchMore()'s whole point is to vary them
+// without starting a new list. The merge dedupes by `__ref` before
 // appending — this is the exact same shape/reasoning as the `feed` field
-// policy just below, applied generically since `watchFeed` and
-// `upcomingEvents` need the identical fix (see docs/DEVELOPMENT.md
-// changelog): without a merge function, Apollo's default field policy
-// replaces the cached value on every fetchMore() rather than appending,
-// which silently turned "Load more" into "replace the list" for both.
-function paginatedConnectionMerge(listKey: string) {
+// policy just below, applied generically since `watchFeed`,
+// `upcomingEvents`, and `marketplaceListings` all need the identical fix
+// (see docs/DEVELOPMENT.md changelog): without a merge function, Apollo's
+// default field policy replaces the cached value on every fetchMore()
+// rather than appending, which silently turned "Load more" into "replace
+// the list".
+function paginatedConnectionMerge(listKey: string, keyArgs: string[] | false = false) {
   return {
-    keyArgs: false,
+    keyArgs,
     merge(existing: any, incoming: any) {
       if (!existing) return incoming;
       const existingSet = new Set((existing[listKey] ?? []).map((item: any) => item.__ref));
@@ -179,6 +183,7 @@ export const apolloCache = new InMemoryCache({
         },
         watchFeed: paginatedConnectionMerge('videos'),
         upcomingEvents: paginatedConnectionMerge('events'),
+        marketplaceListings: paginatedConnectionMerge('listings', ['category']),
         messages: {
           keyArgs: ['conversationId'],
           merge(existing: any[] = [], incoming: any[]) {

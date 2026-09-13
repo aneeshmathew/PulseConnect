@@ -484,6 +484,89 @@ export const CANCEL_RSVP = gql`
   ${EVENT_FIELDS}
 `;
 
+// ── Marketplace ────────────────────────────────────────────────────────────
+
+export const LISTING_FIELDS = gql`
+  fragment ListingFields on MarketplaceListing {
+    id
+    title
+    description
+    price
+    category
+    condition
+    images
+    location
+    status
+    createdAt
+    updatedAt
+    seller { ...UserFields }
+  }
+  ${USER_FIELDS}
+`;
+
+export const GET_MARKETPLACE_LISTINGS = gql`
+  query GetMarketplaceListings($category: ListingCategory, $cursor: String, $limit: Int) {
+    marketplaceListings(category: $category, cursor: $cursor, limit: $limit) {
+      listings { ...ListingFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const GET_LISTING = gql`
+  query GetListing($id: ID!) {
+    marketplaceListing(id: $id) { ...ListingFields }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const GET_USER_LISTINGS = gql`
+  query GetUserListings($userId: ID!, $cursor: String, $limit: Int) {
+    userListings(userId: $userId, cursor: $cursor, limit: $limit) {
+      listings { ...ListingFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const CREATE_LISTING = gql`
+  mutation CreateListing($input: CreateListingInput!) {
+    createListing(input: $input) { ...ListingFields }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const UPDATE_LISTING = gql`
+  mutation UpdateListing($id: ID!, $input: UpdateListingInput!) {
+    updateListing(id: $id, input: $input) { ...ListingFields }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const DELETE_LISTING = gql`
+  mutation DeleteListing($id: ID!) {
+    deleteListing(id: $id)
+  }
+`;
+
+export const MARK_LISTING_SOLD = gql`
+  mutation MarkListingSold($id: ID!) {
+    markListingSold(id: $id) { ...ListingFields }
+  }
+  ${LISTING_FIELDS}
+`;
+
+export const RELIST_LISTING = gql`
+  mutation RelistListing($id: ID!) {
+    relistListing(id: $id) { ...ListingFields }
+  }
+  ${LISTING_FIELDS}
+`;
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const LOGIN = gql`
