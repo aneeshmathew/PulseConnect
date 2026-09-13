@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client';
 import { Toaster } from 'react-hot-toast';
-import { Store, Calendar, Loader2 } from 'lucide-react';
+import { Store, Loader2 } from 'lucide-react';
 import { client } from '@/lib/apollo';
 import { useAuthStore } from '@/store';
 
@@ -28,6 +28,8 @@ const PostDetailPage = lazy(() => import('@/pages/PostDetail').then((m) => ({ de
 const SavedPage = lazy(() => import('@/pages/Saved').then((m) => ({ default: m.SavedPage })));
 const SettingsPage = lazy(() => import('@/pages/Settings').then((m) => ({ default: m.SettingsPage })));
 const WatchPage = lazy(() => import('@/pages/Watch').then((m) => ({ default: m.WatchPage })));
+const EventsPage = lazy(() => import('@/pages/Events').then((m) => ({ default: m.EventsPage })));
+const EventDetailPage = lazy(() => import('@/pages/EventDetail').then((m) => ({ default: m.EventDetailPage })));
 
 // Minimal, dependency-free fallback — shown only for the brief moment a
 // route chunk is being fetched (typically imperceptible on a warm cache),
@@ -69,9 +71,8 @@ export default function App() {
               <ComingSoonPage icon={Store} title="Marketplace" description="Buying and selling with your community is coming soon." />
             </PrivateRoute>} />
             <Route path="/saved" element={<PrivateRoute><SavedPage /></PrivateRoute>} />
-            <Route path="/events" element={<PrivateRoute>
-              <ComingSoonPage icon={Calendar} title="Events" description="Create and discover events with friends — coming soon." />
-            </PrivateRoute>} />
+            <Route path="/events" element={<PrivateRoute><EventsPage /></PrivateRoute>} />
+            <Route path="/event/:id" element={<PrivateRoute><EventDetailPage /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

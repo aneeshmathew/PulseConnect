@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { LucideIcon, ArrowLeft } from 'lucide-react';
 import { AppLayout } from './Home';
 
-// These six nav destinations (Friends, Watch, Marketplace, Saved, Events,
-// Settings) are linked from both the top navbar and left sidebar, but don't
-// have a real feature built yet — no page, and no backend GraphQL schema
-// support either. Before this page existed, clicking any of them hit
-// App.tsx's catch-all route and silently bounced back to Home with no
-// explanation. This at least tells the person what's going on instead of
-// looking broken. See README "Known Gaps" for the full writeup.
+// These five nav destinations (Friends, Watch, Marketplace, Saved, Settings)
+// were linked from both the top navbar and left sidebar without a real
+// feature built yet — no page, and no backend GraphQL schema support
+// either. Before this page existed, clicking any of them hit App.tsx's
+// catch-all route and silently bounced back to Home with no explanation.
+// This at least tells the person what's going on instead of looking
+// broken. Events has since been built out for real (see docs/DEVELOPMENT.md)
+// and no longer uses this component — Marketplace is the only one left.
 interface ComingSoonPageProps {
   icon: LucideIcon;
   title: string;

@@ -6,6 +6,7 @@ import { Comment } from '../models/Comment';
 import { Story } from '../models/Story';
 import { Conversation, Message } from '../models/Message';
 import { Video } from '../models/Video';
+import { Event } from '../models/Event';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ async function seed() {
   await Promise.all([
     User.deleteMany({}), Post.deleteMany({}), Comment.deleteMany({}),
     Story.deleteMany({}), Conversation.deleteMany({}), Message.deleteMany({}),
-    Video.deleteMany({}),
+    Video.deleteMany({}), Event.deleteMany({}),
   ]);
   console.log('🧹 Cleared all existing data');
 
@@ -413,6 +414,48 @@ async function seed() {
   }
   console.log(`🎬 Created ${videoDocs.length} videos`);
 
+  // ── Events ───────────────────────────────────────────────────────────────
+  // Cover images reuse the existing IMAGES pool (stock photos already
+  // proven to load) — see the Watch seed-bucket lesson above (2026-09-07
+  // (6)/(7)): don't hotlink a new, unverified external asset host when a
+  // known-good one is already in use elsewhere in this file.
+  const EVENT_DEFS = [
+    { title: 'Weekend Hiking Meetup', description: 'Casual group hike, all paces welcome. Bring water!', location: 'Griffith Park, Los Angeles, CA', daysFromNow: 3 },
+    { title: 'Product Launch Party', description: 'Celebrating the v2 launch with the whole team 🎉', location: 'Downtown Loft, Austin, TX', daysFromNow: 7 },
+    { title: 'Community Coffee Meetup', description: 'Casual coffee & conversation, new faces always welcome.', location: 'Blue Bottle Coffee, San Francisco, CA', daysFromNow: 10 },
+    { title: 'Live Music Night', description: 'Local bands, good drinks, better company 🎸', location: 'The Echo Lounge, Nashville, TN', daysFromNow: 14 },
+    { title: 'Photography Walk', description: 'Bring a camera (phone counts!) — golden hour city walk.', location: 'Millennium Park, Chicago, IL', daysFromNow: 18 },
+    { title: 'Yoga in the Park', description: 'Beginner-friendly morning flow, mats provided.', location: 'Washington Park, Denver, CO', daysFromNow: 21 },
+  ];
+
+  const eventDocs: any[] = [];
+  for (let i = 0; i < EVENT_DEFS.length; i++) {
+    const def = EVENT_DEFS[i];
+    const host = users[i % users.length];
+    const attendeePool = users.filter((u: any) => u._id.toString() !== host._id.toString());
+    const going = pickSome(attendeePool, 1, 5);
+    const interested = pickSome(attendeePool.filter((u: any) => !going.includes(u)), 0, 3);
+    const startAt = new Date(Date.now() + def.daysFromNow * 24 * 3600 * 1000);
+
+    const event = new Event({
+      host: host._id,
+      title: def.title,
+      description: def.description,
+      coverImage: `https://picsum.photos/seed/event${i}/800/400`,
+      location: def.location,
+      startAt,
+      endAt: new Date(startAt.getTime() + 2 * 3600 * 1000),
+      visibility: 'public',
+      attendees: [
+        ...going.map((u: any) => ({ user: u._id, status: 'GOING', respondedAt: new Date() })),
+        ...interested.map((u: any) => ({ user: u._id, status: 'INTERESTED', respondedAt: new Date() })),
+      ],
+    });
+    await event.save();
+    eventDocs.push(event);
+  }
+  console.log(`📅 Created ${eventDocs.length} events`);
+
   // ── 6. Sample conversation ────────────────────────────────────────────────
   const conv = await Conversation.create({
     participants: [demo._id, alice._id],
@@ -450,6 +493,7 @@ async function seed() {
   console.log(`  💬 Comments:      ${commentCount}`);
   console.log(`  📸 Stories:       ${users.length}`);
   console.log(`  🎬 Videos:        ${videoDocs.length}`);
+  console.log(`  📅 Events:        ${eventDocs.length}`);
   console.log(`  🤝 Friendships:   ${friendPairs.length}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  📧 Email:         demo@example.com');

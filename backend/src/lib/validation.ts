@@ -54,6 +54,32 @@ export const VideoCommentSchema = z.object({
   content: z.string().min(1).max(2000),
 });
 
+export const CreateEventSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().max(5000).optional(),
+  coverImage: z.string().url().optional(),
+  location: z.string().max(300).optional(),
+  startAt: z.coerce.date(),
+  endAt: z.coerce.date().optional(),
+  visibility: z.enum(['PUBLIC', 'FRIENDS', 'PRIVATE']).optional().default('PUBLIC'),
+}).refine((data) => !data.endAt || data.endAt >= data.startAt, {
+  message: 'endAt must be on or after startAt',
+  path: ['endAt'],
+});
+
+export const UpdateEventSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(5000).optional(),
+  coverImage: z.string().url().optional(),
+  location: z.string().max(300).optional(),
+  startAt: z.coerce.date().optional(),
+  endAt: z.coerce.date().optional(),
+  visibility: z.enum(['PUBLIC', 'FRIENDS', 'PRIVATE']).optional(),
+}).refine((data) => !data.endAt || !data.startAt || data.endAt >= data.startAt, {
+  message: 'endAt must be on or after startAt',
+  path: ['endAt'],
+});
+
 export const CreateCommentSchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(8000),

@@ -398,6 +398,92 @@ export const INCREMENT_VIDEO_VIEW = gql`
   }
 `;
 
+// ── Events ───────────────────────────────────────────────────────────────────
+
+export const EVENT_FIELDS = gql`
+  fragment EventFields on Event {
+    id
+    title
+    description
+    coverImage
+    location
+    startAt
+    endAt
+    visibility
+    attendeesCount
+    goingCount
+    interestedCount
+    myRsvp
+    createdAt
+    host { ...UserFields }
+    attendees { status respondedAt user { ...UserFields } }
+  }
+  ${USER_FIELDS}
+`;
+
+export const GET_UPCOMING_EVENTS = gql`
+  query GetUpcomingEvents($cursor: String, $limit: Int) {
+    upcomingEvents(cursor: $cursor, limit: $limit) {
+      events { ...EventFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const GET_EVENT = gql`
+  query GetEvent($id: ID!) {
+    event(id: $id) { ...EventFields }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const GET_USER_EVENTS = gql`
+  query GetUserEvents($userId: ID!, $cursor: String, $limit: Int) {
+    userEvents(userId: $userId, cursor: $cursor, limit: $limit) {
+      events { ...EventFields }
+      hasMore
+      nextCursor
+    }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const CREATE_EVENT = gql`
+  mutation CreateEvent($input: CreateEventInput!) {
+    createEvent(input: $input) { ...EventFields }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const UPDATE_EVENT = gql`
+  mutation UpdateEvent($id: ID!, $input: UpdateEventInput!) {
+    updateEvent(id: $id, input: $input) { ...EventFields }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const DELETE_EVENT = gql`
+  mutation DeleteEvent($id: ID!) {
+    deleteEvent(id: $id)
+  }
+`;
+
+export const RSVP_TO_EVENT = gql`
+  mutation RsvpToEvent($eventId: ID!, $status: RsvpStatus!) {
+    rsvpToEvent(eventId: $eventId, status: $status) { ...EventFields }
+  }
+  ${EVENT_FIELDS}
+`;
+
+export const CANCEL_RSVP = gql`
+  mutation CancelRsvp($eventId: ID!) {
+    cancelRsvp(eventId: $eventId) { ...EventFields }
+  }
+  ${EVENT_FIELDS}
+`;
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const LOGIN = gql`

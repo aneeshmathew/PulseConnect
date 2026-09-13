@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type NotificationType =
   | 'FRIEND_REQUEST' | 'FRIEND_ACCEPT' | 'POST_LIKE' | 'POST_COMMENT'
-  | 'COMMENT_REPLY' | 'POST_SHARE' | 'POST_TAG' | 'MENTION' | 'STORY_VIEW' | 'MESSAGE';
+  | 'COMMENT_REPLY' | 'POST_SHARE' | 'POST_TAG' | 'MENTION' | 'STORY_VIEW' | 'MESSAGE' | 'EVENT_RSVP';
 
 export interface INotification extends Document {
   _id: mongoose.Types.ObjectId;
@@ -25,12 +25,12 @@ const notificationSchema = new Schema<INotification>(
     type: {
       type: String,
       enum: ['FRIEND_REQUEST', 'FRIEND_ACCEPT', 'POST_LIKE', 'POST_COMMENT',
-             'COMMENT_REPLY', 'POST_SHARE', 'POST_TAG', 'MENTION', 'STORY_VIEW', 'MESSAGE'],
+             'COMMENT_REPLY', 'POST_SHARE', 'POST_TAG', 'MENTION', 'STORY_VIEW', 'MESSAGE', 'EVENT_RSVP'],
       required: true,
       set: toUpper,
     },
     entityId: { type: Schema.Types.ObjectId },
-    entityType: { type: String, enum: ['post', 'comment', 'message', 'story'] },
+    entityType: { type: String, enum: ['post', 'comment', 'message', 'story', 'event'] },
     message: { type: String, required: true },
     isRead: { type: Boolean, default: false },
   },

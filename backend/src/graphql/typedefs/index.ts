@@ -8,9 +8,10 @@ export const typeDefs = gql`
   enum ReactionType { LIKE LOVE HAHA WOW SAD ANGRY }
   enum NotificationType {
     FRIEND_REQUEST FRIEND_ACCEPT POST_LIKE POST_COMMENT
-    COMMENT_REPLY POST_SHARE POST_TAG MENTION STORY_VIEW MESSAGE
+    COMMENT_REPLY POST_SHARE POST_TAG MENTION STORY_VIEW MESSAGE EVENT_RSVP
   }
   enum MediaType { IMAGE VIDEO GIF }
+  enum RsvpStatus { GOING INTERESTED DECLINED }
 
   # ─── Types ────────────────────────────────────────────────────────────────
   type User {
@@ -205,6 +206,37 @@ export const typeDefs = gql`
     nextCursor: String
   }
 
+  # ─── Events ──────────────────────────────────────────────────────────────
+  type Event {
+    id: ID!
+    host: User!
+    title: String!
+    description: String!
+    coverImage: String
+    location: String!
+    startAt: DateTime!
+    endAt: DateTime
+    visibility: Visibility!
+    attendees: [EventAttendee!]!
+    attendeesCount: Int!
+    goingCount: Int!
+    interestedCount: Int!
+    myRsvp: RsvpStatus
+    createdAt: DateTime!
+  }
+
+  type EventAttendee {
+    user: User!
+    status: RsvpStatus!
+    respondedAt: DateTime!
+  }
+
+  type EventConnection {
+    events: [Event!]!
+    hasMore: Boolean!
+    nextCursor: String
+  }
+
   type Message {
     id: ID!
     conversation: Conversation!
@@ -327,6 +359,11 @@ export const typeDefs = gql`
     video(id: ID!): Video
     userVideos(userId: ID!, cursor: String, limit: Int): VideoConnection!
 
+    # Events
+    upcomingEvents(cursor: String, limit: Int): EventConnection!
+    event(id: ID!): Event
+    userEvents(userId: ID!, cursor: String, limit: Int): EventConnection!
+
     # Notifications
     notifications(limit: Int, offset: Int): [Notification!]!
     unreadNotificationsCount: Int!
@@ -399,6 +436,13 @@ export const typeDefs = gql`
     removeVideoReaction(videoId: ID!): Video!
     commentOnVideo(videoId: ID!, content: String!): Video!
     incrementVideoView(videoId: ID!): Boolean!
+
+    # Events
+    createEvent(input: CreateEventInput!): Event!
+    updateEvent(id: ID!, input: UpdateEventInput!): Event!
+    deleteEvent(id: ID!): Boolean!
+    rsvpToEvent(eventId: ID!, status: RsvpStatus!): Event!
+    cancelRsvp(eventId: ID!): Event!
 
     # Notifications
     markNotificationRead(id: ID!): Notification!
@@ -516,6 +560,26 @@ export const typeDefs = gql`
     duration: Int
     width: Int
     height: Int
+    visibility: Visibility
+  }
+
+  input CreateEventInput {
+    title: String!
+    description: String
+    coverImage: String
+    location: String
+    startAt: DateTime!
+    endAt: DateTime
+    visibility: Visibility
+  }
+
+  input UpdateEventInput {
+    title: String
+    description: String
+    coverImage: String
+    location: String
+    startAt: DateTime
+    endAt: DateTime
     visibility: Visibility
   }
 
