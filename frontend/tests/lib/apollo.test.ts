@@ -238,6 +238,113 @@ describe('apolloCache — feed pagination merge', () => {
   });
 });
 
+describe('apolloCache — watchFeed pagination merge', () => {
+  const WATCH_FEED_QUERY = gql`
+    query WatchFeed {
+      watchFeed {
+        hasMore
+        videos {
+          id
+        }
+      }
+    }
+  `;
+
+  // Regression coverage for the exact bug flagged while writing
+  // Events.test.tsx: watchFeed (and upcomingEvents, tested below) had no
+  // merge policy, so Apollo's default field behavior replaced the cached
+  // page on every fetchMore() call instead of appending — silently
+  // turning "Load more" into "replace the list" in both Watch and Events.
+  // Fixed via the shared paginatedConnectionMerge() helper in apollo.ts.
+  it('appends new videos and de-duplicates by ref across pages', async () => {
+    const { apolloCache } = await import('@/lib/apollo');
+    await apolloCache.reset();
+
+    apolloCache.writeQuery({
+      query: WATCH_FEED_QUERY,
+      data: {
+        watchFeed: {
+          __typename: 'VideoConnection',
+          hasMore: true,
+          videos: [
+            { __typename: 'Video', id: 'v1' },
+            { __typename: 'Video', id: 'v2' },
+          ],
+        },
+      },
+    });
+
+    apolloCache.writeQuery({
+      query: WATCH_FEED_QUERY,
+      data: {
+        watchFeed: {
+          __typename: 'VideoConnection',
+          hasMore: false,
+          videos: [
+            { __typename: 'Video', id: 'v2' },
+            { __typename: 'Video', id: 'v3' },
+          ],
+        },
+      },
+    });
+
+    const result = apolloCache.readQuery({ query: WATCH_FEED_QUERY });
+    expect((result as any).watchFeed.videos.map((v: any) => v.id)).toEqual(['v1', 'v2', 'v3']);
+    expect((result as any).watchFeed.hasMore).toBe(false);
+  });
+});
+
+describe('apolloCache — upcomingEvents pagination merge', () => {
+  const UPCOMING_EVENTS_QUERY = gql`
+    query UpcomingEvents {
+      upcomingEvents {
+        hasMore
+        events {
+          id
+        }
+      }
+    }
+  `;
+
+  it('appends new events and de-duplicates by ref across pages', async () => {
+    const { apolloCache } = await import('@/lib/apollo');
+    await apolloCache.reset();
+
+    apolloCache.writeQuery({
+      query: UPCOMING_EVENTS_QUERY,
+      data: {
+        upcomingEvents: {
+          __typename: 'EventConnection',
+          hasMore: true,
+          events: [
+            { __typename: 'Event', id: 'e1' },
+            { __typename: 'Event', id: 'e2' },
+          ],
+        },
+      },
+    });
+
+    // Event "e2" appears again in the second page — must not be duplicated.
+    apolloCache.writeQuery({
+      query: UPCOMING_EVENTS_QUERY,
+      data: {
+        upcomingEvents: {
+          __typename: 'EventConnection',
+          hasMore: false,
+          events: [
+            { __typename: 'Event', id: 'e2' },
+            { __typename: 'Event', id: 'e3' },
+          ],
+        },
+      },
+    });
+
+    const result = apolloCache.readQuery({ query: UPCOMING_EVENTS_QUERY });
+    expect((result as any).upcomingEvents.events.map((e: any) => e.id)).toEqual(['e1', 'e2', 'e3']);
+    expect((result as any).upcomingEvents.hasMore).toBe(false);
+  });
+});
+
 describe('apolloCache — messages merge', () => {
   const MESSAGES_QUERY = gql`
     query Messages($conversationId: ID!) {

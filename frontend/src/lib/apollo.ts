@@ -134,6 +134,32 @@ const activeLink: ApolloLink = subscriptionsEnabled
     )
   : httpChain;
 
+// Shared merge policy for cursor-paginated connection-shaped fields
+// (`{ <listKey>: [...], hasMore, nextCursor }`) that fetchMore() calls
+// with only `{ cursor, limit }` variables, no other arguments that would
+// need to vary the cache key. `keyArgs: false` makes the field key
+// entirely arg-independent, and the merge dedupes by `__ref` before
+// appending — this is the exact same shape/reasoning as the `feed` field
+// policy just below, applied generically since `watchFeed` and
+// `upcomingEvents` need the identical fix (see docs/DEVELOPMENT.md
+// changelog): without a merge function, Apollo's default field policy
+// replaces the cached value on every fetchMore() rather than appending,
+// which silently turned "Load more" into "replace the list" for both.
+function paginatedConnectionMerge(listKey: string) {
+  return {
+    keyArgs: false,
+    merge(existing: any, incoming: any) {
+      if (!existing) return incoming;
+      const existingSet = new Set((existing[listKey] ?? []).map((item: any) => item.__ref));
+      const merged = [...(existing[listKey] ?? [])];
+      (incoming[listKey] ?? []).forEach((item: any) => {
+        if (!existingSet.has(item.__ref)) merged.push(item);
+      });
+      return { ...incoming, [listKey]: merged };
+    },
+  };
+}
+
 export const apolloCache = new InMemoryCache({
   typePolicies: {
     Query: {
@@ -151,6 +177,8 @@ export const apolloCache = new InMemoryCache({
             return { ...incoming, posts: merged };
           },
         },
+        watchFeed: paginatedConnectionMerge('videos'),
+        upcomingEvents: paginatedConnectionMerge('events'),
         messages: {
           keyArgs: ['conversationId'],
           merge(existing: any[] = [], incoming: any[]) {
