@@ -5,6 +5,7 @@ import {
   split,
   from,
   ApolloLink,
+  type TypePolicies,
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
@@ -174,7 +175,7 @@ function paginatedConnectionMerge(listKey: string, keyArgs: string[] | false = f
 // under an entirely different, unwatched cache key and the "Load more"
 // UI never updates — see docs/DEVELOPMENT.md changelog for the test
 // failure this caused before this export existed).
-export const cacheTypePolicies = {
+export const cacheTypePolicies: TypePolicies = {
   Query: {
     fields: {
       feed: {
