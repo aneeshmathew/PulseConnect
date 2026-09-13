@@ -164,48 +164,58 @@ function paginatedConnectionMerge(listKey: string, keyArgs: string[] | false = f
   };
 }
 
-export const apolloCache = new InMemoryCache({
-  typePolicies: {
-    Query: {
-      fields: {
-        feed: {
-          keyArgs: false,
-          merge(existing: any, incoming: any) {
-            if (!existing) return incoming;
-            // Deduplicate by __ref
-            const existingSet = new Set((existing.posts ?? []).map((p: any) => p.__ref));
-            const merged = [...(existing.posts ?? [])];
-            (incoming.posts ?? []).forEach((p: any) => {
-              if (!existingSet.has(p.__ref)) merged.push(p);
-            });
-            return { ...incoming, posts: merged };
-          },
+// Exported separately (not just inlined into `apolloCache` below) so tests
+// that need to exercise real pagination behavior — e.g. a "Load more"
+// integration test for watchFeed/upcomingEvents/marketplaceListings —
+// can build their own fresh `InMemoryCache` with these same policies
+// instead of either reusing this singleton (which would leak state
+// between tests) or falling back to MockedProvider's bare default cache
+// (which has no merge/keyArgs config at all, so fetchMore results land
+// under an entirely different, unwatched cache key and the "Load more"
+// UI never updates — see docs/DEVELOPMENT.md changelog for the test
+// failure this caused before this export existed).
+export const cacheTypePolicies = {
+  Query: {
+    fields: {
+      feed: {
+        keyArgs: false,
+        merge(existing: any, incoming: any) {
+          if (!existing) return incoming;
+          // Deduplicate by __ref
+          const existingSet = new Set((existing.posts ?? []).map((p: any) => p.__ref));
+          const merged = [...(existing.posts ?? [])];
+          (incoming.posts ?? []).forEach((p: any) => {
+            if (!existingSet.has(p.__ref)) merged.push(p);
+          });
+          return { ...incoming, posts: merged };
         },
-        watchFeed: paginatedConnectionMerge('videos'),
-        upcomingEvents: paginatedConnectionMerge('events'),
-        marketplaceListings: paginatedConnectionMerge('listings', ['category']),
-        messages: {
-          keyArgs: ['conversationId'],
-          merge(existing: any[] = [], incoming: any[]) {
-            const existingSet = new Set(existing.map((m: any) => m.__ref));
-            const merged = [...existing];
-            incoming.forEach((m: any) => {
-              if (!existingSet.has(m.__ref)) merged.push(m);
-            });
-            return merged;
-          },
+      },
+      watchFeed: paginatedConnectionMerge('videos'),
+      upcomingEvents: paginatedConnectionMerge('events'),
+      marketplaceListings: paginatedConnectionMerge('listings', ['category']),
+      messages: {
+        keyArgs: ['conversationId'],
+        merge(existing: any[] = [], incoming: any[]) {
+          const existingSet = new Set(existing.map((m: any) => m.__ref));
+          const merged = [...existing];
+          incoming.forEach((m: any) => {
+            if (!existingSet.has(m.__ref)) merged.push(m);
+          });
+          return merged;
         },
       },
     },
-    Post: { keyFields: ['id'] },
-    User: { keyFields: ['id'] },
-    Message: { keyFields: ['id'] },
-    Conversation: { keyFields: ['id'] },
-    Notification: { keyFields: ['id'] },
-    Story: { keyFields: ['id'] },
-    Comment: { keyFields: ['id'] },
   },
-});
+  Post: { keyFields: ['id'] },
+  User: { keyFields: ['id'] },
+  Message: { keyFields: ['id'] },
+  Conversation: { keyFields: ['id'] },
+  Notification: { keyFields: ['id'] },
+  Story: { keyFields: ['id'] },
+  Comment: { keyFields: ['id'] },
+};
+
+export const apolloCache = new InMemoryCache({ typePolicies: cacheTypePolicies });
 
 export const client = new ApolloClient({
   link: activeLink,

@@ -196,7 +196,16 @@ export const eventResolvers = {
 
     myRsvp: (parent: any, _: unknown, { user }: GraphQLContext) => {
       if (!user) return null;
-      const a = parent.attendees?.find((a: any) => a.user.toString() === user._id.toString());
+      // `attendees.user` is a raw ObjectId on upcomingEvents/userEvents
+      // list results, but createEvent/updateEvent/rsvpToEvent/cancelRsvp
+      // and the single event(id) query all populate it into a full User
+      // object — same populated-vs-raw pitfall as the hostId capture in
+      // rsvpToEvent above. `.toString()` on a populated object doesn't
+      // yield the id, so this must check for an `_id` first.
+      const a = parent.attendees?.find((att: any) => {
+        const attendeeUserId = att.user?._id ? att.user._id.toString() : att.user.toString();
+        return attendeeUserId === user._id.toString();
+      });
       return a ? a.status.toUpperCase() : null;
     },
 
