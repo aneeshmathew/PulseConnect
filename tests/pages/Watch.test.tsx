@@ -33,7 +33,7 @@ class FakeIntersectionObserver {
 }
 
 beforeEach(() => {
-  (global as any).IntersectionObserver = FakeIntersectionObserver;
+  (globalThis as any).IntersectionObserver = FakeIntersectionObserver;
 });
 
 function makeVideo(id: string, caption: string) {
