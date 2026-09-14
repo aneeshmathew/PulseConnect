@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pc-grad" x1="4" y1="2" x2="60" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5EA8FF" />
+      <stop offset="52%" stop-color="#1877F2" />
+      <stop offset="100%" stop-color="#0c3685" />
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="17" fill="url(#pc-grad)" />
+
+  <!-- Chat bubble tail -->
+  <path d="M21 39 L14.5 48 L27 39 Z" fill="white" />
+  <!-- Chat bubble -->
+  <rect x="15" y="16" width="34" height="23" rx="10.5" fill="white" />
+  <!-- Typing dots -->
+  <circle cx="24" cy="27.5" r="2.3" fill="#1565d8" />
+  <circle cx="32" cy="27.5" r="2.3" fill="#1565d8" />
+  <circle cx="40" cy="27.5" r="2.3" fill="#1565d8" />
+
+  <!-- Live / online ping badge -->
+  <circle cx="47.5" cy="16.5" r="6.5" fill="url(#pc-grad)" />
+  <circle cx="47.5" cy="16.5" r="5.5" fill="#3DDC97" />
+</svg>
