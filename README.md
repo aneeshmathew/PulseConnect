@@ -2,8 +2,6 @@
 
 React + TypeScript single-page app for PulseConnect, a full-stack Socialbook-style social network. This repo is the client only — it talks to the [PulseConnect backend](../pulseconnect-backend) over GraphQL (HTTP for queries/mutations, WebSocket for subscriptions in dev). See that repo for the API, database, and server-side docs.
 
-> **Repo split:** this project was originally a single monorepo (`frontend/` + `backend/` + an unused `shared/` workspace). As of 2026-09-13 it's split into two independently deployable repos — this one, and [`pulseconnect-backend`](../pulseconnect-backend). Nothing in the app code changed as part of the split; only the repo/deploy boundary did.
-
 Core Features
 
     Interactive Social Feed: Create, edit, and delete text and media posts, engage with threaded comments, and interact using a Socialbook-style multi-emoji reaction system.
