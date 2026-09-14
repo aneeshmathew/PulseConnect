@@ -468,6 +468,10 @@ async function seed() {
     { title: "Kids' Winter Coat Bundle (size 6-7)", description: '3 coats, all in great shape, outgrown quickly.', price: 25, category: 'CLOTHING', condition: 'GOOD', location: 'Chicago, IL' },
     { title: 'Standing Desk, electric', description: 'Dual motor, memory presets. Selling as I switched jobs and no longer WFH.', price: 180, category: 'HOME_GARDEN', condition: 'LIKE_NEW', location: 'Nashville, TN' },
     { title: '2015 Honda Civic', description: '92k miles, clean title, well maintained, new tires last year.', price: 8900, category: 'VEHICLES', condition: 'GOOD', location: 'Los Angeles, CA' },
+    { title: 'Lego Star Wars Millennium Falcon (Complete)', description: 'All pieces accounted for, instructions included. Built once, displayed, never played with.', price: 65, category: 'TOYS_GAMES', condition: 'GOOD', location: 'Seattle, WA' },
+    { title: 'Sony WH-1000XM4 Headphones', description: 'Excellent noise cancelling, includes case and both cables.', price: 180, category: 'ELECTRONICS', condition: 'LIKE_NEW', location: 'Portland, OR' },
+    { title: 'Solid Oak Dining Table + 4 Chairs', description: 'Some scratches on the tabletop but very sturdy. Local pickup only.', price: 300, category: 'FURNITURE', condition: 'FAIR', location: 'Boston, MA' },
+    { title: 'Weber Charcoal Grill', description: 'Works great, a little rusty on the legs. Great starter grill.', price: 45, category: 'HOME_GARDEN', condition: 'FAIR', location: 'Phoenix, AZ' },
   ];
 
   const listingDocs: any[] = [];
@@ -483,7 +487,7 @@ async function seed() {
       condition: def.condition,
       location: def.location,
       images: [IMAGES[i % IMAGES.length], IMAGES[(i + 1) % IMAGES.length]],
-      status: i === 0 ? 'SOLD' : 'ACTIVE', // one sold listing to exercise that state on first run
+      status: i === 0 || i === 8 ? 'SOLD' : 'ACTIVE', // a couple sold listings to exercise that state on first run
     });
     await listing.save();
     listingDocs.push(listing);

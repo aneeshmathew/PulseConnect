@@ -70,13 +70,13 @@ export function MarketplacePage() {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-3 -mx-1 px-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-3 mb-3 -mx-1 px-1 scrollbar-hide">
         {CATEGORY_TABS.map((tab) => (
           <button
             key={tab.label}
             onClick={() => setCategory(tab.value)}
             className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap',
+              'flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors whitespace-nowrap',
               category === tab.value
                 ? 'bg-brand-500 text-white'
                 : 'bg-gray-100 dark:bg-surface-dark-3 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
