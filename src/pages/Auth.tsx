@@ -147,7 +147,7 @@ function BrandPanel() {
           Stay close to<br />what matters.
         </h1>
         <p className="text-lg text-white/75 leading-relaxed mb-10">
-          Real-time feeds, instant messaging and live notifications — PulseConnect keeps
+          Real-time feeds, instant messaging and live notifications — Pulse Connect keeps
           you in sync with your people, the moment it happens.
         </p>
         <ul className="space-y-4">
@@ -214,9 +214,8 @@ export function LoginPage() {
           </div>
 
           <div className="hidden lg:block mb-8">
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white">Welcome back</h2>
             <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
-              Log in to continue to PulseConnect.
+              Log in to continue to Pulse Connect.
             </p>
           </div>
 
@@ -344,7 +343,7 @@ export function RegisterPage() {
       if (data?.register) {
         setAuth(data.register.token, data.register.user);
         navigate('/', { replace: true });
-        toast.success('Welcome to PluseConnect! 🎉');
+        toast.success('Welcome to Pulse Connect! 🎉');
       }
     } catch (err: any) {
       const msg = err?.graphQLErrors?.[0]?.message ?? 'Registration failed';

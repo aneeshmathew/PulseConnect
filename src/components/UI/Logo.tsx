@@ -10,7 +10,7 @@ interface LogoProps {
 }
 
 /**
- * PulseConnect brand mark — a rounded gradient badge with a chat-bubble
+ * Pulse Connect brand mark — a rounded gradient badge with a chat-bubble
  * glyph (messaging/social) carrying a typing-dots detail, plus a small
  * glowing "online" ping badge for the real-time ("pulse") angle. Reads
  * as a social/chat app at a glance — deliberately not a heartbeat/EKG mark.
@@ -29,7 +29,7 @@ export function Logo({ size = 44, className, withWordmark = false, wordmarkClass
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
-        aria-label="PulseConnect logo"
+        aria-label="Pulse Connect logo"
       >
         <defs>
           <linearGradient id={gradId} x1="4" y1="2" x2="60" y2="62" gradientUnits="userSpaceOnUse">

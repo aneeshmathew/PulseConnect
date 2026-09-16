@@ -99,7 +99,7 @@ export const useUIStore = create<UIState>()(
   devtools(
     persist(
       (set) => ({
-        // PulseConnect defaults to dark mode regardless of system preference.
+        // Pulse Connect defaults to dark mode regardless of system preference.
         // Returning users still get whatever they last chose, via `persist` below.
         darkMode: true,
         sidebarOpen: true,

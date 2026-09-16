@@ -1,6 +1,6 @@
-# PulseConnect — Frontend
+# Pulse Connect — Frontend
 
-React + TypeScript single-page app for PulseConnect, a full-stack Socialbook-style social network. This repo is the client only — it talks to the [PulseConnect backend](../pulseconnect-backend) over GraphQL (HTTP for queries/mutations, WebSocket for subscriptions in dev). See that repo for the API, database, and server-side docs.
+React + TypeScript single-page app for Pulse Connect, a full-stack Socialbook-style social network. This repo is the client only — it talks to the [Pulse Connect backend](../pulseconnect-backend) over GraphQL (HTTP for queries/mutations, WebSocket for subscriptions in dev). See that repo for the API, database, and server-side docs.
 
 Core Features
 

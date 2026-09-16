@@ -1,4 +1,4 @@
-# PulseConnect Frontend — Development Blueprint
+# Pulse Connect Frontend — Development Blueprint
 
 > **Purpose of this file:** this is the single source of truth for *where the frontend actually stands* — what's built, what's verified working, what's stubbed out, and what's next. It's written so that any agentic model (or human) picking up the project cold can get a complete, accurate picture without reading the codebase first. For tech stack, folder structure, setup instructions, and GraphQL API reference, see [`README.md`](../README.md) — this file is intentionally scoped to *progress*, not project mechanics.
 >
