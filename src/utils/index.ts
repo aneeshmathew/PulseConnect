@@ -59,12 +59,13 @@ export interface UploadedMedia {
 
 function apiBaseUrl(): string {
   // Mirror the derivation in lib/apollo.ts so uploads always hit the same
-  // backend the GraphQL client is configured for.
+  // backend the GraphQL client is configured for — including honoring an
+  // explicit VITE_GRAPHQL_URL in dev (e.g. pointing local dev at a
+  // deployed backend instead of localhost:4000).
   const isDevServer = import.meta.env.DEV;
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const graphqlUrl = isDevServer
-    ? 'http://localhost:4000/graphql'
-    : (import.meta.env.VITE_GRAPHQL_URL ?? (isLocalhost ? 'http://localhost:4000/graphql' : '/api/graphql'));
+  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL
+    ?? (isDevServer || isLocalhost ? 'http://localhost:4000/graphql' : '/api/graphql');
   return graphqlUrl.replace(/\/graphql$/, '');
 }
 

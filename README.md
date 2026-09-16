@@ -94,9 +94,11 @@ npm install
 ```bash
 # .env (copy from .env.example)
 
-# Absolute URL of your backend's GraphQL endpoint. Only read by
-# production builds (`vite build`) — `npm run dev` always talks to
-# your local backend regardless of what's set here.
+# Absolute URL of your backend's GraphQL endpoint. Read in every mode,
+# including `npm run dev` — leave unset for normal local dev (defaults to
+# http://localhost:4000/graphql), or set it to point local dev at a
+# deployed backend instead. Either way, that backend must allow your dev
+# origin (http://localhost:5173) in CORS.
 VITE_GRAPHQL_URL=https://your-backend.vercel.app/graphql
 
 # Only needed if you enable subscriptions (see below).
@@ -113,6 +115,7 @@ VITE_ENABLE_SUBSCRIPTIONS=false
 
 ```bash
 npm run dev   # http://localhost:5173, expects backend on http://localhost:4000
+             # unless VITE_GRAPHQL_URL points it at a deployed backend instead
 ```
 
 Run the [backend](../pulseconnect-backend) locally alongside this (`npm run dev` in that repo) for a full working environment, including seeded demo data and a login of `demo@example.com` / `password123`.

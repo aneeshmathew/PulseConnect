@@ -13,21 +13,25 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-// Vite loads .env / .env.local in EVERY mode, including `npm run dev` — so
-// if VITE_GRAPHQL_URL is set anywhere for production, it would previously
-// also leak into local dev and point your dev server at the deployed
-// backend (which CORS-blocks it, since only the deployed frontend origin
-// is allowlisted there). `import.meta.env.DEV` is only true while running
-// the Vite dev server, so gating on it makes `npm run dev` immune to
-// whatever is in VITE_GRAPHQL_URL / VITE_WS_URL — it always talks to your
-// local backend. Vercel's build runs `vite build` (DEV=false), so the
-// deployed frontend still picks up VITE_GRAPHQL_URL as intended.
+// Vite loads .env / .env.local in EVERY mode, including `npm run dev`.
+// VITE_GRAPHQL_URL is honored whenever it's explicitly set — including in
+// dev, so you can point a local `npm run dev` at a deployed backend (e.g.
+// Vercel) without running one locally. Leave it unset and dev falls back
+// to localhost:4000 as before. Just make sure the backend you're pointing
+// at allows your dev origin (http://localhost:5173) in CORS, or requests
+// will fail with a CORS error instead of connecting.
 const isDevServer = import.meta.env.DEV;
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const explicitGraphqlUrl: string | undefined = import.meta.env.VITE_GRAPHQL_URL;
+// True only when there's no explicit remote VITE_GRAPHQL_URL — i.e. this
+// is a genuinely local setup (dev server or plain localhost), not dev
+// pointed at a remote backend. Used below to keep subscriptions off by
+// default against a remote (e.g. Vercel serverless) backend, which can't
+// hold a WebSocket open anyway.
+const isLocalBackendSetup = !explicitGraphqlUrl && (isDevServer || isLocalhost);
 
-const defaultGraphqlUrl = isDevServer
-  ? 'http://localhost:4000/graphql'
-  : (import.meta.env.VITE_GRAPHQL_URL ?? (isLocalhost ? 'http://localhost:4000/graphql' : '/api/graphql'));
+const defaultGraphqlUrl = explicitGraphqlUrl
+  ?? (isDevServer || isLocalhost ? 'http://localhost:4000/graphql' : '/api/graphql');
 
 const httpLink = createHttpLink({
   uri: defaultGraphqlUrl,
@@ -86,10 +90,12 @@ export const errorLink = onError(({ graphQLErrors, networkError, operation }) =>
 // Vercel Node.js serverless functions can't hold a persistent WebSocket
 // connection open, so a backend deployed to Vercel (see backend/api/) can
 // only serve GraphQL over HTTP — subscriptions won't work against it.
-// Default to disabled in any build without an explicit VITE_WS_URL / on
-// localhost; set VITE_ENABLE_SUBSCRIPTIONS=true and VITE_WS_URL if you
-// deploy the WebSocket server elsewhere (see DEPLOYMENT.md).
-export const subscriptionsEnabled = import.meta.env.VITE_ENABLE_SUBSCRIPTIONS === 'true' || isDevServer || isLocalhost;
+// Only auto-enabled for a genuinely local setup (dev server / localhost
+// with no explicit remote VITE_GRAPHQL_URL) — pointing dev at a deployed
+// backend no longer force-enables subscriptions against it. Set
+// VITE_ENABLE_SUBSCRIPTIONS=true and VITE_WS_URL if you deploy the
+// WebSocket server elsewhere (see DEPLOYMENT.md).
+export const subscriptionsEnabled = import.meta.env.VITE_ENABLE_SUBSCRIPTIONS === 'true' || isLocalBackendSetup;
 
 // Fallback polling cadence used by Feed/Chat when subscriptionsEnabled is
 // false — a cheap stand-in for push updates that costs nothing beyond
@@ -104,9 +110,9 @@ export const POLL_INTERVAL_MS = {
 
 // Detect HTTPS → use wss://, HTTP → ws://
 const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-const defaultWsUrl = isDevServer
-  ? 'ws://localhost:4000/graphql'
-  : (import.meta.env.VITE_WS_URL ?? (isLocalhost ? 'ws://localhost:4000/graphql' : `${wsProtocol}://${window.location.host}/graphql`));
+const explicitWsUrl: string | undefined = import.meta.env.VITE_WS_URL;
+const defaultWsUrl = explicitWsUrl
+  ?? (isDevServer || isLocalhost ? 'ws://localhost:4000/graphql' : `${wsProtocol}://${window.location.host}/graphql`);
 const wsUrl = defaultWsUrl;
 
 const httpChain = from([errorLink, authLink, httpLink]);
