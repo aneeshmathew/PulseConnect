@@ -79,7 +79,10 @@ interface ChatRecipient {
 
 interface UIState {
   darkMode: boolean;
-  sidebarOpen: boolean;
+  // Controls the slide-in mobile navigation drawer (hamburger menu) that
+  // exposes the LeftSidebar's nav links + logout on viewports below `lg`,
+  // where the sticky LeftSidebar itself is hidden.
+  mobileMenuOpen: boolean;
   chatOpen: boolean;
   activeChatId: string | null;
   // Set when a chat is opened from somewhere that only knows the *person*
@@ -89,7 +92,8 @@ interface UIState {
   // message sent creates the conversation server-side.
   pendingRecipient: ChatRecipient | null;
   toggleDarkMode: () => void;
-  toggleSidebar: () => void;
+  toggleMobileMenu: () => void;
+  closeMobileMenu: () => void;
   openChat: (id: string) => void;
   openChatWithUser: (recipient: ChatRecipient) => void;
   closeChat: () => void;
@@ -102,7 +106,7 @@ export const useUIStore = create<UIState>()(
         // Pulse Connect defaults to dark mode regardless of system preference.
         // Returning users still get whatever they last chose, via `persist` below.
         darkMode: true,
-        sidebarOpen: true,
+        mobileMenuOpen: false,
         chatOpen: false,
         activeChatId: null,
         pendingRecipient: null,
@@ -115,7 +119,8 @@ export const useUIStore = create<UIState>()(
             return { darkMode: next };
           }, false, 'ui/toggleDarkMode'),
 
-        toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen }), false, 'ui/toggleSidebar'),
+        toggleMobileMenu: () => set((s) => ({ mobileMenuOpen: !s.mobileMenuOpen }), false, 'ui/toggleMobileMenu'),
+        closeMobileMenu: () => set({ mobileMenuOpen: false }, false, 'ui/closeMobileMenu'),
 
         openChat: (id) => set({ chatOpen: true, activeChatId: id, pendingRecipient: null }, false, 'ui/openChat'),
         openChatWithUser: (recipient) =>

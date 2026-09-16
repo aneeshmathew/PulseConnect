@@ -44,7 +44,7 @@ beforeEach(() => {
   // singletons, so state from one test would otherwise leak into the next.
   useAuthStore.setState({ user: null, token: null, isAuthenticated: false });
   useUIStore.setState({
-    sidebarOpen: true,
+    mobileMenuOpen: false,
     chatOpen: false,
     activeChatId: null,
     pendingRecipient: null,
@@ -105,10 +105,16 @@ describe('useUIStore', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
-  it('toggleSidebar flips sidebarOpen', () => {
-    useUIStore.setState({ sidebarOpen: true });
-    useUIStore.getState().toggleSidebar();
-    expect(useUIStore.getState().sidebarOpen).toBe(false);
+  it('toggleMobileMenu flips mobileMenuOpen', () => {
+    useUIStore.setState({ mobileMenuOpen: false });
+    useUIStore.getState().toggleMobileMenu();
+    expect(useUIStore.getState().mobileMenuOpen).toBe(true);
+  });
+
+  it('closeMobileMenu sets mobileMenuOpen to false', () => {
+    useUIStore.setState({ mobileMenuOpen: true });
+    useUIStore.getState().closeMobileMenu();
+    expect(useUIStore.getState().mobileMenuOpen).toBe(false);
   });
 
   it('openChat sets activeChatId and clears any pending recipient', () => {

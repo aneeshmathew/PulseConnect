@@ -56,8 +56,8 @@ export const PostSkeleton = memo(function PostSkeleton() {
 export const StorySkeleton = memo(function StorySkeleton() {
   return (
     <div className="flex flex-col items-center gap-1.5 flex-shrink-0" aria-hidden="true">
-      <Skeleton className="w-14 h-14 rounded-full" />
-      <Skeleton className="h-2.5 w-12" />
+      <Skeleton className="w-12 h-12 sm:w-14 sm:h-14 rounded-full" />
+      <Skeleton className="h-2.5 w-10 sm:w-12" />
     </div>
   );
 });

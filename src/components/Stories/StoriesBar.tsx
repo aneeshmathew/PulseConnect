@@ -222,7 +222,7 @@ export function StoriesBar() {
   return (
     <>
       <div
-        className="flex gap-3 overflow-x-auto pb-1"
+        className="flex gap-2 sm:gap-3 overflow-x-auto pb-1"
         style={{ scrollbarWidth: 'none' }}
         aria-label="Stories"
       >
@@ -235,12 +235,20 @@ export function StoriesBar() {
           className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer group"
         >
           <div className="relative">
-            <Avatar src={user?.avatar} name={user?.fullName ?? 'Me'} size="lg" />
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center border-2 border-white dark:border-surface-dark-2 group-hover:bg-brand-600 transition-colors">
-              <Plus size={11} className="text-white" />
+            {/* Smaller circle on phones — this bar was eating a lot of
+                vertical space on mobile, mostly from the avatar height. */}
+            <Avatar
+              src={user?.avatar}
+              name={user?.fullName ?? 'Me'}
+              size="lg"
+              sizeClassName="w-10 h-10 text-xs sm:w-12 sm:h-12 sm:text-base"
+            />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-brand-500 rounded-full flex items-center justify-center border-2 border-white dark:border-surface-dark-2 group-hover:bg-brand-600 transition-colors">
+              <Plus size={9} className="text-white sm:hidden" />
+              <Plus size={11} className="text-white hidden sm:block" />
             </div>
           </div>
-          <span className="text-xs text-gray-600 dark:text-gray-400 w-14 text-center truncate font-medium">
+          <span className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 w-12 sm:w-14 text-center truncate font-medium">
             Add Story
           </span>
         </div>
@@ -264,10 +272,15 @@ export function StoriesBar() {
                   )}
                 >
                   <div className="p-[2px] bg-white dark:bg-surface-dark-2 rounded-full">
-                    <Avatar src={group.user.avatar} name={group.user.fullName} size="lg" />
+                    <Avatar
+                      src={group.user.avatar}
+                      name={group.user.fullName}
+                      size="lg"
+                      sizeClassName="w-10 h-10 text-xs sm:w-12 sm:h-12 sm:text-base"
+                    />
                   </div>
                 </div>
-                <span className="text-xs text-gray-700 dark:text-gray-300 w-14 text-center truncate">
+                <span className="text-[11px] sm:text-xs text-gray-700 dark:text-gray-300 w-12 sm:w-14 text-center truncate">
                   {group.user.firstName}
                 </span>
               </button>

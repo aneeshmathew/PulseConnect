@@ -17,22 +17,40 @@ const NAV_ITEMS = [
   { to: '/events',      icon: Calendar,   label: 'Events',      exact: false },
 ];
 
-export function LeftSidebar() {
+interface LeftSidebarProps {
+  // 'sidebar' (default): the sticky column used on lg+ screens.
+  // 'drawer': fills its container instead (used inside MobileSidebarDrawer,
+  // which supplies its own fixed positioning, width and scrolling).
+  variant?: 'sidebar' | 'drawer';
+  // Called after any navigation-triggering click (nav link, profile link,
+  // settings, logout) so the mobile drawer can close itself. Left undefined
+  // for the desktop sidebar, where there's nothing to close.
+  onNavigate?: () => void;
+}
+
+export function LeftSidebar({ variant = 'sidebar', onNavigate }: LeftSidebarProps) {
   const { user, logout } = useAuthStore();
   const { darkMode, toggleDarkMode } = useUIStore();
   const navigate = useNavigate();
 
   const handleLogout = useCallback(() => {
     logout();
+    onNavigate?.();
     navigate('/login', { replace: true });
-  }, [logout, navigate]);
+  }, [logout, navigate, onNavigate]);
 
   return (
-    <aside className="w-72 h-[calc(100vh-56px)] sticky top-14 overflow-y-auto scrollbar-hide py-2 px-2 flex flex-col gap-0.5">
+    <aside
+      className={cn(
+        'overflow-y-auto scrollbar-hide py-2 px-2 flex flex-col gap-0.5',
+        variant === 'sidebar' ? 'w-72 h-[calc(100vh-56px)] sticky top-14' : 'w-full h-full'
+      )}
+    >
       {/* Profile link */}
       {user && (
         <NavLink
           to={`/profile/${user.username}`}
+          onClick={onNavigate}
           className={({ isActive }) =>
             cn(
               'flex items-center gap-3 px-2 py-2 rounded-xl transition-colors',
@@ -56,6 +74,7 @@ export function LeftSidebar() {
           key={to}
           to={to}
           end={exact}
+          onClick={onNavigate}
           className={({ isActive }) =>
             cn(
               'flex items-center gap-3 px-2 py-2 rounded-xl transition-colors',
@@ -99,6 +118,7 @@ export function LeftSidebar() {
       {/* Settings */}
       <NavLink
         to="/settings"
+        onClick={onNavigate}
         className="flex items-center gap-3 px-2 py-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-dark-3 transition-colors"
       >
         <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-surface-dark-3 flex items-center justify-center text-gray-600 dark:text-gray-400 flex-shrink-0">

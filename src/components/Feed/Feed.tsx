@@ -117,8 +117,11 @@ export function Feed() {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
       {/* ── Fixed header (Stories + Composer) ─────────────────────────── */}
-      <div className="flex-shrink-0 space-y-3 pb-3">
-        <div className="bg-white dark:bg-surface-dark-2 rounded-xl shadow-card dark:shadow-card-dark p-4">
+      {/* Tighter padding/gaps below `sm` — on phones this header previously
+          ate a large share of the visible viewport before any actual feed
+          content appeared. */}
+      <div className="flex-shrink-0 space-y-2 sm:space-y-3 pb-2 sm:pb-3">
+        <div className="bg-white dark:bg-surface-dark-2 rounded-xl shadow-card dark:shadow-card-dark p-2 sm:p-4">
           <StoriesBar />
         </div>
         <CreatePost />

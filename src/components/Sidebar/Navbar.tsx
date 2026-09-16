@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Home, Users, Store, PlaySquare,
   Bell, MessageCircle, ChevronDown, X, Check, UserX,
-  Settings, Bookmark,
+  Settings, Bookmark, Menu, LogOut,
 } from 'lucide-react';
 import {
   GET_NOTIFICATIONS, SEARCH_USERS,
@@ -15,7 +15,8 @@ import {
 import { subscriptionsEnabled } from '@/lib/apollo';
 import { Avatar } from '@/components/UI/Avatar';
 import { Logo } from '@/components/UI/Logo';
-import { useAuthStore, useNotificationStore } from '@/store';
+import { MobileSidebarDrawer } from '@/components/Sidebar/MobileSidebarDrawer';
+import { useAuthStore, useNotificationStore, useUIStore } from '@/store';
 import { timeAgo, cn } from '@/utils';
 import toast from 'react-hot-toast';
 
@@ -33,7 +34,8 @@ const NOTIF_ICONS: Record<string, string> = {
 };
 
 export function Navbar() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const { toggleMobileMenu, closeMobileMenu } = useUIStore();
   const { unreadCount, incrementUnread, setUnreadCount } = useNotificationStore();
   const navigate = useNavigate();
   // ✅ Fix: use React Router's useLocation, NOT window.location
@@ -175,12 +177,19 @@ export function Navbar() {
     setShowSearch(false);
     setShowNotifs(false);
     setShowProfile(false);
-  }, [location.pathname]);
+    closeMobileMenu();
+  }, [location.pathname, closeMobileMenu]);
 
   const handleMarkAllRead = useCallback(async () => {
     await markAllRead();
     setUnreadCount(0);
   }, [markAllRead, setUnreadCount]);
+
+  const handleLogout = useCallback(() => {
+    setShowProfile(false);
+    logout();
+    navigate('/login', { replace: true });
+  }, [logout, navigate]);
 
   // Shared between the desktop inline search box and the mobile search
   // overlay so both stay in sync instead of duplicating result-rendering.
@@ -214,13 +223,27 @@ export function Navbar() {
   );
 
   return (
+    <>
     <nav
       ref={navRef}
-      className="fixed top-0 left-0 right-0 h-14 bg-white dark:bg-surface-dark-2 border-b border-gray-200 dark:border-gray-700 z-40 flex items-center px-4 gap-2"
+      className="fixed top-0 left-0 right-0 h-14 bg-white dark:bg-surface-dark-2 border-b border-gray-200 dark:border-gray-700 z-40 flex items-center px-2 sm:px-4 gap-1 sm:gap-2"
     >
+      {/* ── Hamburger (mobile/tablet, <lg) ──────────
+          The LeftSidebar (Friends/Watch/Marketplace/Saved/Events, dark
+          mode, Settings, Log Out) is `hidden lg:block`, so below `lg`
+          this is the only way to reach any of that — including logging
+          out, which the profile dropdown deliberately doesn't repeat. */}
+      <button
+        onClick={toggleMobileMenu}
+        aria-label="Open navigation menu"
+        className="lg:hidden flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      >
+        <Menu size={19} className="text-gray-700 dark:text-gray-200" />
+      </button>
+
       {/* ── Logo ─────────────────────────────────── */}
       <Link to="/" aria-label="Home" className="flex-shrink-0">
-        <Logo size={38} />
+        <Logo size={34} />
       </Link>
 
       {/* ── Search (tablet/desktop: inline box, ≥sm) ── */}
@@ -265,9 +288,9 @@ export function Navbar() {
           onClick={() => setShowMobileSearch((v) => !v)}
           aria-label="Search"
           aria-expanded={showMobileSearch}
-          className="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
         >
-          <Search size={18} className="text-gray-700 dark:text-gray-200" />
+          <Search size={17} className="text-gray-700 dark:text-gray-200" />
         </button>
 
         <AnimatePresence>
@@ -337,14 +360,14 @@ export function Navbar() {
       </div>
 
       {/* ── Right actions ────────────────────────── */}
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-1 sm:gap-2 ml-auto">
         {/* Messages */}
         <button
           onClick={() => navigate('/messages')}
           aria-label="Messages"
-          className="relative w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
         >
-          <MessageCircle size={19} className="text-gray-700 dark:text-gray-200" />
+          <MessageCircle size={18} className="text-gray-700 dark:text-gray-200" />
         </button>
 
         {/* Notifications */}
@@ -353,7 +376,7 @@ export function Navbar() {
             onClick={() => { setShowNotifs((v) => !v); setShowProfile(false); }}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             aria-expanded={showNotifs}
-            className="relative w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <Bell size={19} className="text-gray-700 dark:text-gray-200" />
             {unreadCount > 0 && (
@@ -377,7 +400,7 @@ export function Navbar() {
                 transition={{ duration: 0.13 }}
                 role="dialog"
                 aria-label="Notifications panel"
-                className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-surface-dark-2 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
+                className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-full mt-0 sm:mt-2 w-auto sm:w-96 bg-white dark:bg-surface-dark-2 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Notifications</h2>
@@ -479,7 +502,7 @@ export function Navbar() {
                 exit={{ opacity: 0, scale: 0.96, y: 4 }}
                 transition={{ duration: 0.13 }}
                 role="menu"
-                className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-surface-dark-2 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
+                className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-full mt-0 sm:mt-2 w-auto sm:w-72 bg-white dark:bg-surface-dark-2 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
               >
                 <Link
                   to={`/profile/${user.username}`}
@@ -493,13 +516,10 @@ export function Navbar() {
                   </div>
                 </Link>
                 <div className="border-t border-gray-100 dark:border-gray-700 p-2 space-y-0.5">
-                  {/* ✅ Replaced Dark Mode toggle + Log Out here — both
-                      already live on the Settings page (and, separately,
-                      in the left sidebar), so having a third copy in this
-                      dropdown was pure duplication with no independent
-                      purpose. Settings & Privacy / Saved give this menu
-                      its own reason to exist instead of repeating what's
-                      one click away elsewhere. */}
+                  {/* ✅ Fix: Log Out is now here too, not just in the
+                      LeftSidebar — that sidebar is `hidden lg:block`, so on
+                      mobile this dropdown was the only account menu in
+                      reach and it had no way to log out at all. */}
                   <Link
                     to="/settings"
                     role="menuitem"
@@ -522,6 +542,16 @@ export function Navbar() {
                     </span>
                     <span>Saved</span>
                   </Link>
+                  <button
+                    onClick={handleLogout}
+                    role="menuitem"
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2.5"
+                  >
+                    <span className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                      <LogOut size={15} />
+                    </span>
+                    <span>Log Out</span>
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -529,5 +559,7 @@ export function Navbar() {
         </div>
       </div>
     </nav>
+    <MobileSidebarDrawer />
+    </>
   );
 }

@@ -207,13 +207,20 @@ export function CreatePost() {
   const VisIcon = visOpt.icon;
 
   return (
-    <div className="bg-white dark:bg-surface-dark-2 rounded-xl shadow-card dark:shadow-card-dark p-4">
-      {/* Collapsed trigger */}
-      <div className="flex items-center gap-3">
-        <Avatar src={user?.avatar} name={user?.fullName ?? 'User'} size="md" />
+    <div className="bg-white dark:bg-surface-dark-2 rounded-xl shadow-card dark:shadow-card-dark p-2.5 sm:p-4">
+      {/* Collapsed trigger — tighter on phones, where this row (plus the
+          Stories bar above it) was pushing the actual feed well below the
+          fold before scrolling. */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        <Avatar
+          src={user?.avatar}
+          name={user?.fullName ?? 'User'}
+          size="md"
+          sizeClassName="w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm"
+        />
         <button
           onClick={handleExpand}
-          className="flex-1 bg-gray-100 dark:bg-surface-dark-3 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full px-4 py-2.5 text-left text-sm text-gray-400 transition-colors"
+          className="flex-1 bg-gray-100 dark:bg-surface-dark-3 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-left text-sm text-gray-400 transition-colors"
         >
           What's on your mind, {user?.firstName}?
         </button>

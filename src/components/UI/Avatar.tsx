@@ -7,6 +7,12 @@ interface AvatarProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   isOnline?: boolean;
   className?: string;
+  // Full literal Tailwind classes (e.g. "w-9 h-9 text-xs sm:w-12 sm:h-12
+  // sm:text-base") for callers that need the circle itself to shrink at
+  // narrow viewports — used to reclaim vertical space on mobile without
+  // changing `size` (and therefore the desktop layout) at every call site.
+  // Takes over sizing from `size` entirely when provided.
+  sizeClassName?: string;
 }
 
 const SIZES = {
@@ -18,7 +24,7 @@ const SIZES = {
 };
 
 export const Avatar = memo(function Avatar({
-  src, name, size = 'md', isOnline, className,
+  src, name, size = 'md', isOnline, className, sizeClassName,
 }: AvatarProps) {
   const [imgError, setImgError] = useState(false);
   const { container, dot } = SIZES[size];
@@ -30,7 +36,7 @@ export const Avatar = memo(function Avatar({
       <div
         className={cn(
           'rounded-full overflow-hidden flex items-center justify-center font-semibold text-white select-none',
-          container
+          sizeClassName ?? container
         )}
         style={showFallback ? { backgroundColor: bgColor } : undefined}
         role="img"
