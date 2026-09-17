@@ -85,7 +85,7 @@ export function Logo({ size = 44, className, withWordmark = false, wordmarkClass
 
       {withWordmark && (
         <span className={cn('text-xl font-black tracking-tight text-gray-900 dark:text-white', wordmarkClassName)}>
-          Pulse<span className="text-brand-500">Connect</span>
+          Pulse{' '}<span className="text-brand-500">Connect</span>
         </span>
       )}
     </div>
