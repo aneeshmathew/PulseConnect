@@ -10,15 +10,17 @@ interface LogoProps {
 }
 
 /**
- * Pulse Connect brand mark — a rounded gradient badge with a chat-bubble
- * glyph (messaging/social) carrying a typing-dots detail, plus a small
- * glowing "online" ping badge for the real-time ("pulse") angle. Reads
- * as a social/chat app at a glance — deliberately not a heartbeat/EKG mark.
- * Pure inline SVG so it stays crisp at favicon sizes and hero sizes alike.
+ * Pulse Connect brand mark — a circular badge built around the brand's two
+ * actual ideas rather than a literal chat-bubble callout: two nodes joined
+ * by a signal-arc ("Connect"), with one node picked out in a live-green
+ * accent and a faint ripple around it ("Pulse" — real-time/active, without
+ * reaching for the chat-bubble or medical-heartbeat clichés). Pure inline
+ * SVG so it stays crisp at favicon sizes and hero sizes alike.
  */
 export function Logo({ size = 44, className, withWordmark = false, wordmarkClassName }: LogoProps) {
   const gradId = 'pc-logo-grad';
   const glowId = 'pc-logo-glow';
+  const clipId = 'pc-logo-clip';
 
   return (
     <div className={cn('inline-flex items-center gap-2.5 select-none', className)}>
@@ -32,37 +34,53 @@ export function Logo({ size = 44, className, withWordmark = false, wordmarkClass
         aria-label="Pulse Connect logo"
       >
         <defs>
-          <linearGradient id={gradId} x1="4" y1="2" x2="60" y2="62" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradId} x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#5EA8FF" />
             <stop offset="52%" stopColor="#1877F2" />
             <stop offset="100%" stopColor="#0c3685" />
           </linearGradient>
-          <filter id={glowId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="1.6" result="blur" />
+          <filter id={glowId} x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="1.4" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <clipPath id={clipId}>
+            <circle cx="32" cy="32" r="30.5" />
+          </clipPath>
         </defs>
 
-        <rect x="1.5" y="1.5" width="61" height="61" rx="17" fill={`url(#${gradId})`} />
-        <rect x="1.5" y="1.5" width="61" height="61" rx="17" fill="white" fillOpacity="0.04" />
-        <rect x="2" y="2" width="60" height="60" rx="16.5" stroke="white" strokeOpacity="0.16" />
+        {/* Badge — a full circle, not a rounded square */}
+        <circle cx="32" cy="32" r="30.5" fill={`url(#${gradId})`} />
 
-        {/* Chat bubble tail */}
-        <path d="M21 39 L14.5 48 L27 39 Z" fill="white" />
-        {/* Chat bubble */}
-        <rect x="15" y="16" width="34" height="23" rx="10.5" fill="white" />
-        {/* Typing-dots detail inside the bubble */}
-        <circle cx="24" cy="27.5" r="2.3" fill="#1565d8" />
-        <circle cx="32" cy="27.5" r="2.3" fill="#1565d8" />
-        <circle cx="40" cy="27.5" r="2.3" fill="#1565d8" />
+        <g clipPath={`url(#${clipId})`}>
+          {/* Soft top-left specular highlight for depth */}
+          <ellipse cx="20" cy="14" rx="22" ry="14" fill="white" fillOpacity="0.14" />
 
-        {/* "Live" ping badge — the real-time / pulse cue, styled like an
-            online-presence indicator rather than a medical heartbeat. */}
-        <circle cx="47.5" cy="16.5" r="6.5" fill={`url(#${gradId})`} />
-        <circle cx="47.5" cy="16.5" r="5.5" fill="#3DDC97" filter={`url(#${glowId})`} />
+          {/* Signal arc joining the two nodes below — the "Connect" */}
+          <path
+            d="M20 42 Q30 20 45 23"
+            stroke="white"
+            strokeOpacity="0.9"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+            fill="none"
+          />
+
+          {/* Ripple around the live node — the "Pulse" */}
+          <circle cx="45" cy="23" r="12" stroke="#3DDC97" strokeOpacity="0.22" strokeWidth="1.6" fill="none" />
+          <circle cx="45" cy="23" r="8.5" stroke="#3DDC97" strokeOpacity="0.38" strokeWidth="1.6" fill="none" />
+
+          {/* Node A — a person / connection point */}
+          <circle cx="20" cy="42" r="6.5" fill="white" />
+
+          {/* Node B — the live, pulsing node */}
+          <circle cx="45" cy="23" r="5.5" fill="#3DDC97" filter={`url(#${glowId})`} />
+        </g>
+
+        {/* Rim highlight */}
+        <circle cx="32" cy="32" r="30" stroke="white" strokeOpacity="0.16" />
       </svg>
 
       {withWordmark && (

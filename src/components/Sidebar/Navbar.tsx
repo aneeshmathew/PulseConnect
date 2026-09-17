@@ -43,14 +43,6 @@ export function Navbar() {
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  // ✅ Fix (mobile layout): the inline search box is a fixed 208px
-  // (w-52) and flex-shrink-0, so on phone-width viewports the navbar
-  // (logo + search + message/notif/profile icons) needed ~430px+ to fit
-  // without overlap — the profile button (and its Log Out menu) was the
-  // rightmost item, so it got pushed off-screen. Below `sm` we now show a
-  // small search icon instead that opens the same search UI as a
-  // full-width overlay, freeing ~216px so the icon cluster always fits.
-  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -242,24 +234,49 @@ export function Navbar() {
       </button>
 
       {/* ── Logo ─────────────────────────────────── */}
-      <Link to="/" aria-label="Home" className="flex-shrink-0">
+      {/* `flex items-center` here (not just on the div Logo.tsx renders)
+          matters: Link renders an <a>, an inline element. As a flex child
+          of <nav> it gets blockified for nav's own layout, but without an
+          explicit `flex` on the <a> itself, its child — Logo's own
+          `inline-flex` div — stays inline-level internally and lays out
+          in an invisible line box governed by baseline/line-height rules
+          instead of simple block sizing. That silently adds a few px of
+          empty space below the visible logo (the line-height "descender"
+          reserved for text that was never there), making the <a>'s real
+          height taller than the 34px logo — so when nav centers that
+          taller box, the visible logo (sitting at its top) renders a few
+          px above the row's actual center, out of line with the fixed-
+          height icon buttons beside it. Making the <a> itself a flex
+          container routes its child through flex cross-axis centering
+          instead, sidestepping the baseline/line-height layout entirely. */}
+      <Link to="/" aria-label="Home" className="flex-shrink-0 flex items-center">
         <Logo size={34} />
       </Link>
 
-      {/* ── Search (tablet/desktop: inline box, ≥sm) ── */}
-      <div ref={searchRef} className="relative flex-shrink-0 hidden sm:block">
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-surface-dark-3 rounded-full px-3 py-2 w-52">
+      {/* ── Search ───────────────────────────────────
+          Flexes to fill the gap between the icon clusters below `md`,
+          where there are no center tabs to do that job — previously
+          this collapsed to a small icon-only button below `sm` (to
+          avoid a fixed 208px box overflowing narrow screens), which
+          fixed the overflow but left a large dead gap in the middle of
+          the bar on real phones instead. flex-1 + min-w-0 fixes the
+          same overflow by shrinking instead of collapsing, so the gap
+          gets filled by a working search bar rather than empty space.
+          Settles to a fixed compact width at `md`+, where the center
+          tabs' own flex-1 takes over centering. */}
+      <div ref={searchRef} className="relative flex-1 min-w-0 md:flex-none md:w-52">
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-surface-dark-3 rounded-full px-3 py-2 w-full">
           <Search size={15} className="text-gray-400 flex-shrink-0" aria-hidden />
           <input
             value={searchText}
             onChange={(e) => { setSearchText(e.target.value); setShowSearch(true); }}
             onFocus={() => setShowSearch(true)}
-            placeholder="Search PluseConnect"
+            placeholder="Search PulseConnect"
             aria-label="Search"
-            className="bg-transparent text-sm outline-none text-gray-900 dark:text-white placeholder:text-gray-400 w-full"
+            className="bg-transparent text-sm outline-none text-gray-900 dark:text-white placeholder:text-gray-400 w-full min-w-0"
           />
           {searchText && (
-            <button onClick={() => { setSearchText(''); setShowSearch(false); }} aria-label="Clear search">
+            <button onClick={() => { setSearchText(''); setShowSearch(false); }} aria-label="Clear search" className="flex-shrink-0">
               <X size={13} className="text-gray-400" />
             </button>
           )}
@@ -274,56 +291,9 @@ export function Navbar() {
               transition={{ duration: 0.12 }}
               role="listbox"
               aria-label="Search results"
-              className="absolute top-full mt-2 left-0 w-76 bg-white dark:bg-surface-dark-2 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
+              className="absolute top-full mt-2 left-0 right-0 md:right-auto md:w-76 bg-white dark:bg-surface-dark-2 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50"
             >
               {renderSearchResults()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Search (mobile: icon toggles full-width overlay, <sm) ── */}
-      <div className="relative flex-shrink-0 sm:hidden">
-        <button
-          onClick={() => setShowMobileSearch((v) => !v)}
-          aria-label="Search"
-          aria-expanded={showMobileSearch}
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-surface-dark-3 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-        >
-          <Search size={17} className="text-gray-700 dark:text-gray-200" />
-        </button>
-
-        <AnimatePresence>
-          {showMobileSearch && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.12 }}
-              className="fixed top-14 left-0 right-0 z-50 bg-white dark:bg-surface-dark-2 border-b border-gray-200 dark:border-gray-700 shadow-lg"
-            >
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-surface-dark-3 rounded-full px-3 py-2 m-3">
-                <Search size={15} className="text-gray-400 flex-shrink-0" aria-hidden />
-                <input
-                  autoFocus
-                  value={searchText}
-                  onChange={(e) => { setSearchText(e.target.value); setShowSearch(true); }}
-                  placeholder="Search PluseConnect"
-                  aria-label="Search"
-                  className="bg-transparent text-sm outline-none text-gray-900 dark:text-white placeholder:text-gray-400 w-full"
-                />
-                <button
-                  onClick={() => { setShowMobileSearch(false); setSearchText(''); setShowSearch(false); }}
-                  aria-label="Close search"
-                >
-                  <X size={15} className="text-gray-400" />
-                </button>
-              </div>
-              {searchText.trim().length >= 2 && (
-                <div role="listbox" aria-label="Search results" className="max-h-[70vh] overflow-y-auto border-t border-gray-100 dark:border-gray-700">
-                  {renderSearchResults(() => setShowMobileSearch(false))}
-                </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -360,7 +330,7 @@ export function Navbar() {
       </div>
 
       {/* ── Right actions ────────────────────────── */}
-      <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         {/* Messages */}
         <button
           onClick={() => navigate('/messages')}
