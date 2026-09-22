@@ -20,6 +20,8 @@ import { useAuthStore } from '@/store';
 const HomePage = lazy(() => import('@/pages/Home').then((m) => ({ default: m.HomePage })));
 const LoginPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.ResetPasswordPage })));
 const ProfilePage = lazy(() => import('@/pages/Profile').then((m) => ({ default: m.ProfilePage })));
 const MessagesPage = lazy(() => import('@/pages/Messages').then((m) => ({ default: m.MessagesPage })));
 const FriendsPage = lazy(() => import('@/pages/Friends').then((m) => ({ default: m.FriendsPage })));
@@ -61,6 +63,8 @@ export default function App() {
           <Routes>
             <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+            <Route path="/reset-password"  element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
             <Route path="/"         element={<PrivateRoute><HomePage /></PrivateRoute>} />
             <Route path="/profile/:username" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
             <Route path="/messages"          element={<PrivateRoute><MessagesPage /></PrivateRoute>} />

@@ -118,7 +118,7 @@ npm run dev   # http://localhost:5173, expects backend on http://localhost:4000
              # unless VITE_GRAPHQL_URL points it at a deployed backend instead
 ```
 
-Run the [backend](../pulseconnect-backend) locally alongside this (`npm run dev` in that repo) for a full working environment, including seeded demo data and a login of `demo@example.com` / `password123`.
+Run the [backend](../pulseconnect-backend) locally alongside this (`npm run dev` in that repo) for a full working environment, including seeded demo data and a login of `demo@example.com` / `Password1`.
 
 ---
 

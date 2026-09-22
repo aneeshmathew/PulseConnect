@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@apollo/client';
 import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, Loader2, AlertCircle, Sun, Moon, Mail, Lock,
-  LogIn, Zap, MessageCircle, Users, Sparkles,
+  LogIn, Zap, MessageCircle, Users, Sparkles, ArrowLeft, CheckCircle2, KeyRound,
 } from 'lucide-react';
-import { LOGIN, REGISTER } from '@/lib/graphql';
+import { LOGIN, REGISTER, REQUEST_PASSWORD_RESET, RESET_PASSWORD } from '@/lib/graphql';
 import { useAuthStore, useUIStore } from '@/store';
 import { cn } from '@/utils';
 import { Logo } from '@/components/UI/Logo';
@@ -242,9 +242,12 @@ export function LoginPage() {
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
                 Log In
               </button>
-              <button type="button" className="w-full text-sm text-brand-500 hover:underline text-center py-1">
+              <Link
+                to="/forgot-password"
+                className="block w-full text-sm text-brand-500 hover:underline text-center py-1"
+              >
                 Forgot password?
-              </button>
+              </Link>
             </form>
 
             <button
@@ -410,6 +413,210 @@ export function RegisterPage() {
           <div className="text-center mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
             <Link to="/login" className="text-sm text-brand-500 hover:underline font-medium">
               Already have an account? Log in
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Forgot password ──────────────────────────────────────────────────────────
+
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const [requestReset, { loading }] = useMutation(REQUEST_PASSWORD_RESET);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!email.trim()) return;
+    try {
+      await requestReset({ variables: { email: email.trim().toLowerCase() } });
+    } catch {
+      // Intentionally swallowed: the UI shows the same "check your inbox"
+      // state whether or not the request succeeded, so a failed lookup
+      // can't be used to tell whether an email is registered. Network-level
+      // failures fall through to the same reassuring state rather than a
+      // scary error, since retrying is harmless (idempotent on the backend).
+    } finally {
+      setSent(true);
+    }
+  }, [email, requestReset]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+      <ThemeToggle />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-4">
+            <Logo size={52} />
+          </div>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white">Reset your password</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+            {sent ? "We've sent you a link if that account exists." : "Enter your email and we'll send you a reset link."}
+          </p>
+        </div>
+
+        <div className="bg-white/95 dark:bg-surface-dark-2/95 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 dark:shadow-black/40 border border-gray-100 dark:border-white/5 p-8">
+          {sent ? (
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-14 h-14 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <CheckCircle2 size={28} className="text-green-500" />
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                If <span className="font-medium">{email.trim()}</span> is registered, a password reset
+                link is on its way. It expires in 60 minutes.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSent(false)}
+                className="text-sm text-brand-500 hover:underline font-medium"
+              >
+                Didn't get it? Try again
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              {error && (
+                <div role="alert" className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
+                  <AlertCircle size={15} className="flex-shrink-0" /> {error}
+                </div>
+              )}
+              <InputField
+                label="Email" type="email" value={email} onChange={setEmail}
+                placeholder="your@email.com" autoComplete="email" required icon={Mail}
+              />
+              <button
+                type="submit"
+                disabled={loading || !email.trim()}
+                className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                Send reset link
+              </button>
+            </form>
+          )}
+
+          <div className="text-center mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <Link to="/login" className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-500 inline-flex items-center gap-1.5 font-medium">
+              <ArrowLeft size={14} /> Back to log in
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Reset password ───────────────────────────────────────────────────────────
+
+function validateNewPassword(password: string, confirmPassword: string): string | undefined {
+  if (!password || password.length < 8) return 'Min. 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Must contain an uppercase letter';
+  if (!/[0-9]/.test(password)) return 'Must contain a number';
+  if (password !== confirmPassword) return 'Passwords do not match';
+  return undefined;
+}
+
+export function ResetPasswordPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? '';
+
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const [resetPassword, { loading }] = useMutation(RESET_PASSWORD);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const validationError = validateNewPassword(password, confirmPassword);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    try {
+      await resetPassword({ variables: { token, newPassword: password } });
+      toast.success('Password updated — please log in.');
+      navigate('/login', { replace: true });
+    } catch (err: any) {
+      setError(err?.graphQLErrors?.[0]?.message ?? 'That reset link is invalid or has expired.');
+    }
+  }, [password, confirmPassword, token, resetPassword, navigate]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+      <ThemeToggle />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-4">
+            <Logo size={52} />
+          </div>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white">Choose a new password</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+            Make it something you haven't used before.
+          </p>
+        </div>
+
+        <div className="bg-white/95 dark:bg-surface-dark-2/95 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 dark:shadow-black/40 border border-gray-100 dark:border-white/5 p-8">
+          {!token ? (
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-14 h-14 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                <AlertCircle size={28} className="text-red-500" />
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                This reset link is missing its token. Request a new one to continue.
+              </p>
+              <Link
+                to="/forgot-password"
+                className="inline-block text-sm text-brand-500 hover:underline font-medium"
+              >
+                Request a new link
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              {error && (
+                <div role="alert" className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
+                  <AlertCircle size={15} className="flex-shrink-0" /> {error}
+                </div>
+              )}
+              <InputField
+                label="New password" type="password" value={password} onChange={setPassword}
+                placeholder="Min. 8 characters" autoComplete="new-password" required icon={Lock}
+              />
+              <InputField
+                label="Confirm password" type="password" value={confirmPassword} onChange={setConfirmPassword}
+                placeholder="Repeat password" autoComplete="new-password" required icon={Lock}
+              />
+              <button
+                type="submit"
+                disabled={loading || !password || !confirmPassword}
+                className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                Reset password
+              </button>
+            </form>
+          )}
+
+          <div className="text-center mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <Link to="/login" className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-500 inline-flex items-center gap-1.5 font-medium">
+              <ArrowLeft size={14} /> Back to log in
             </Link>
           </div>
         </div>
