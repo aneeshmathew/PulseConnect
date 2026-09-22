@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, Loader2, AlertCircle, Sun, Moon, Mail, Lock,
   LogIn, Zap, MessageCircle, Users, Sparkles, ArrowLeft, CheckCircle2, KeyRound,
+  MessageSquare, Heart, ThumbsUp, Share2, Send, Camera, Video, Mic, Bell,
+  Image, Hash, AtSign, UserPlus, Globe, Radio, Film, PlayCircle, Bookmark,
+  Newspaper, Rss, Smile, Repeat2, Phone, CalendarDays, Music, Gift,
 } from 'lucide-react';
 import { LOGIN, REGISTER, REQUEST_PASSWORD_RESET, RESET_PASSWORD } from '@/lib/graphql';
 import { useAuthStore, useUIStore } from '@/store';
@@ -105,6 +108,63 @@ function ThemeToggle() {
   );
 }
 
+// ─── Decorative backdrop (social/communication icon scatter) ─────────────────
+//
+// Fixed, hand-placed positions rather than randomly generated — keeps a
+// deliberate, even spread and avoids layout shift between renders. Every
+// icon sits outside the ~460px column the card occupies so nothing is ever
+// covered; on narrow viewports most fall outside the visible viewport
+// entirely, which is fine — this is a "fill the margins" texture for
+// tablet/desktop, not something that needs to survive at every size.
+const BACKDROP_ICONS: Array<{
+  Icon: React.ElementType; top: string; left: string; size: number; rotate: number;
+}> = [
+  { Icon: MessageCircle, top: '8%', left: '6%', size: 40, rotate: -12 },
+  { Icon: Heart, top: '15%', left: '88%', size: 28, rotate: 10 },
+  { Icon: Camera, top: '22%', left: '14%', size: 32, rotate: 8 },
+  { Icon: Send, top: '30%', left: '92%', size: 24, rotate: -8 },
+  { Icon: Video, top: '38%', left: '4%', size: 44, rotate: 14 },
+  { Icon: ThumbsUp, top: '45%', left: '90%', size: 30, rotate: -14 },
+  { Icon: Bell, top: '52%', left: '10%', size: 26, rotate: -6 },
+  { Icon: Share2, top: '60%', left: '93%', size: 28, rotate: 12 },
+  { Icon: MessageSquare, top: '68%', left: '7%', size: 36, rotate: 6 },
+  { Icon: Users, top: '75%', left: '89%', size: 40, rotate: -10 },
+  { Icon: Mic, top: '82%', left: '16%', size: 24, rotate: -16 },
+  { Icon: Image, top: '88%', left: '86%', size: 32, rotate: 9 },
+  { Icon: Hash, top: '5%', left: '35%', size: 22, rotate: 4 },
+  { Icon: AtSign, top: '4%', left: '68%', size: 26, rotate: -5 },
+  { Icon: UserPlus, top: '93%', left: '40%', size: 28, rotate: 7 },
+  { Icon: Globe, top: '93%', left: '62%', size: 30, rotate: -9 },
+  { Icon: Radio, top: '12%', left: '50%', size: 20, rotate: 15 },
+  { Icon: Film, top: '68%', left: '2%', size: 22, rotate: -11 },
+  { Icon: PlayCircle, top: '25%', left: '97%', size: 34, rotate: 5 },
+  { Icon: Bookmark, top: '80%', left: '3%', size: 24, rotate: 13 },
+  { Icon: Newspaper, top: '58%', left: '1%', size: 30, rotate: -7 },
+  { Icon: Rss, top: '44%', left: '98%', size: 22, rotate: 10 },
+  { Icon: Smile, top: '18%', left: '2%', size: 26, rotate: -13 },
+  { Icon: Repeat2, top: '95%', left: '15%', size: 24, rotate: 8 },
+  { Icon: Phone, top: '35%', left: '99%', size: 24, rotate: -4 },
+  { Icon: CalendarDays, top: '96%', left: '85%', size: 26, rotate: 6 },
+  { Icon: Music, top: '10%', left: '82%', size: 22, rotate: -9 },
+  { Icon: Gift, top: '55%', left: '4%', size: 24, rotate: 11 },
+];
+
+function SocialBackdrop() {
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
+      {BACKDROP_ICONS.map(({ Icon, top, left, size, rotate }, i) => (
+        <Icon
+          key={i}
+          size={size}
+          strokeWidth={1.5}
+          className="absolute text-gray-400/[0.14] dark:text-white/[0.06]"
+          style={{ top, left, transform: `translate(-50%, -50%) rotate(${rotate}deg)` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Branding panel (desktop only) ────────────────────────────────────────────
 
 function BrandPanel() {
@@ -194,7 +254,7 @@ export function LoginPage() {
 
   const fillDemoCredentials = useCallback(() => {
     setEmail('demo@example.com');
-    setPassword('password123');
+    setPassword('Password1');
   }, []);
 
   return (
@@ -202,12 +262,13 @@ export function LoginPage() {
       <ThemeToggle />
       <BrandPanel />
 
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center px-4 sm:px-6 py-12">
+        <SocialBackdrop />
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
+          className="relative z-10 w-full max-w-md"
         >
           <div className="flex lg:hidden justify-center mb-8">
             <Logo size={48} withWordmark />
@@ -355,12 +416,13 @@ export function RegisterPage() {
   }, [form, register, setAuth, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative overflow-hidden transition-colors">
       <ThemeToggle />
+      <SocialBackdrop />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="relative z-10 w-full max-w-md"
       >
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
@@ -448,12 +510,13 @@ export function ForgotPasswordPage() {
   }, [email, requestReset]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative overflow-hidden transition-colors">
       <ThemeToggle />
+      <SocialBackdrop />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="relative z-10 w-full max-w-md"
       >
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
@@ -555,12 +618,13 @@ export function ResetPasswordPage() {
   }, [password, confirmPassword, token, resetPassword, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0b0e14] flex items-center justify-center px-4 py-8 relative overflow-hidden transition-colors">
       <ThemeToggle />
+      <SocialBackdrop />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="relative z-10 w-full max-w-md"
       >
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
